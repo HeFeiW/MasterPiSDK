@@ -1,0 +1,8 @@
+*/build/*
+*/dist/*
+build/*
+dist/*
+MasterPi.egg-info/*
+MasterPi_PC_Software/*
+hiwonder-toolbox/*
+*.pyc

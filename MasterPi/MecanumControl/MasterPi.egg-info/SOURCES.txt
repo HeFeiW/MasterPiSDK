@@ -1,0 +1,5 @@
+MasterPi.egg-info/PKG-INFO
+MasterPi.egg-info/SOURCES.txt
+MasterPi.egg-info/dependency_links.txt
+MasterPi.egg-info/requires.txt
+MasterPi.egg-info/top_level.txt
