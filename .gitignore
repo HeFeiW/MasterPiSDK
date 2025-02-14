@@ -3,6 +3,6 @@
 build/*
 dist/*
 MasterPi.egg-info/*
-MasterPi_PC_Software/*
+MasterPi_PC_Software/
 hiwonder-toolbox/*
 *.pyc

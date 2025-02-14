@@ -9,7 +9,7 @@ import OPi.GPIO as GPIO
 from smbus2 import SMBus, i2c_msg
 # from rpi_ws281x import PixelStrip
 # from rpi_ws281x import Color as PixelColor
-
+from .ai_pro_pin_map import _BOARD 
 #幻尔科技raspberrypi扩展板sdk#
 if sys.version_info.major == 2:
     print('Please run this program with python3!')
@@ -27,7 +27,7 @@ __i2c = 1
 __i2c_addr = 0x7A
 
 GPIO.setwarnings(False)
-GPIO.setmode(GPIO.BOARD)
+GPIO.setmode(_BOARD)
 
 # __RGB_COUNT = 2
 # __RGB_PIN = 12

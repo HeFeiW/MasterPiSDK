@@ -16,36 +16,34 @@ Usage:
 # So, PD14 will be (4 - 1) * 32 + 14 = 110
 
 # Orange Pi Ai Pro physical board pin to GPIO pin
-BOARD = {
-    3: 64,    # I2C2_SDA_3V0
-    5: 65,    # I2C2_SCL_3V0
-    7: 150,   # GPIO4_C6/PWM1
-    8: 145,   # I2C3_SCL
-    10: 144,  # I2C3_SDA
-    11: 33,   # GPIO1_A1
-    12: 50,   # GPIO1_C2
-    13: 35,   # GPIO1_A3
-    15: 92,   # GPIO2_D4
-    16: 54,   # GPIO1_C6
-    18: 55,   # GPIO1_C7
-    19: 40,   # UART4_TX
-    21: 39,   # UART4_RX
-    22: 56,   # GPIO1_D0
-    23: 41,   # SPI1_CLK
-    24: 42,   # SPI1_CSn0
-    26: 149,  # GPIO4_C5
-    27: 64,   # I2C2_SDA
-    28: 65,   # I2C2_SCL
-    29: 121,  # I2S0_RX
-    31: 122,  # I2S0_TX
-    32: 128,  # I2S_CLK
-    33: 120,  # I2S0_SCK
-    35: 123,  # I2S0_SI0
-    36: 127,  # I2S0_SO0
-    37: 124,  # I2S0_SI1
-    38: 125,  # I2S0_SI2
-    40: 126,  # I2S0_SI3
+_BOARD = {
+    3: 76,    # SDA7
+    5: 75,    # SCL7
+    7: 226,   # GPIO7_02
+    8: 14,    # UTXD0
+    10: 15,   # URXD0
+    11: 82,   # GPIO2_18
+    12: 227,  # GPIO7_03
+    13: 38,   # GPIO1_06
+    15: 79,   # GPIO2_15
+    16: 80,   # GPIO2_16
+    18: 25,   # GPIO0_25
+    19: 91,   # SPI0_SD0
+    21: 92,   # SPI0_SDI
+    22: 2,    # GPIO0_02
+    23: 89,   # SPI0_CLK
+    24: 90,   # SPI0_CS
+    26: 83,   # GPIO2_19
+    29: 231,  # URXD7
+    31: 84,   # GPIO2_20
+    32: 33,   # PWM3
+    33: 128,  # GPIO4_00
+    35: 228,  # GPIO7_04
+    36: 81,   # GPIO2_17
+    37: 3,    # GPIO0_03
+    38: 230,  # GPIO7_06
+    40: 229,  # GPIO7_05
 }
 
 # No reason for BCM mapping, keeping it for compatibility
-BCM = BOARD
+BCM = _BOARD
