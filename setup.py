@@ -18,6 +18,7 @@ install_requires = [
     'matplotlib',
     'opencv-python',
     'smbus2',
+    'pyyaml',
 ]
 
 
