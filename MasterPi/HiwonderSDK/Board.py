@@ -3,7 +3,7 @@ import os
 import sys
 sys.path.append('/home/pi/MasterPi/')
 import time
-import MasterPi.yaml_handle
+import MasterPi.yaml_handle as yaml_handle
 # import RPi.GPIO as GPIO
 import OPi.GPIO as GPIO
 from smbus2 import SMBus, i2c_msg
@@ -14,6 +14,7 @@ from .ai_pro_pin_map import _BOARD
 if sys.version_info.major == 2:
     print('Please run this program with python3!')
     sys.exit(0)
+from SerialServoCmd import * 
 
 __ADC_BAT_ADDR = 0
 __SERVO_ADDR   = 21
@@ -74,7 +75,7 @@ def getMotor(index):
     index = index - 1
     return __motor_speed[index]
 
-def setPWMServoAngle(index, angle):
+def setPWMServoAngle(servo_id, angle):
     if servo_id < 1 or servo_id > 6:
         raise AttributeError("Invalid Servo ID: %d"%servo_id)
     index = servo_id - 1
