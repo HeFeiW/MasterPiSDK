@@ -207,6 +207,6 @@ if __name__ == '__main__':
                 break
         else:
             time.sleep(0.01)
-    my_camera.camera_close()
+    #my_camera.camera_close()
     cv2.destroyAllWindows()
 

@@ -5,7 +5,7 @@ sys.path.append('/home/pi/MasterPi/')
 import time
 import signal
 import MasterPi
-from MasterPi.MasterPi.HiwonderSDK import mecanum as mecanum
+import HiwonderSDK.mecanum as mecanum
 
 if sys.version_info.major == 2:
     print('Please run this program with python3!')
