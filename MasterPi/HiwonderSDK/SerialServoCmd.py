@@ -35,19 +35,16 @@ LOBOT_SERVO_LED_CTRL_READ        = 34
 LOBOT_SERVO_LED_ERROR_WRITE      = 35
 LOBOT_SERVO_LED_ERROR_READ       = 36
 
-pi = pigpio.pi()  # 初始化 pigpio库
-serialHandle = serial.Serial("/dev/ttyAMA0", 115200)  # 初始化串口， 波特率为115200
-
-
 def portInit():  # 配置用到的IO口
     pi.set_mode(17, pigpio.OUTPUT)  # 配置RX_CON 即 GPIO17 为输出
     pi.write(17, 0)
     pi.set_mode(27, pigpio.OUTPUT)  # 配置TX_CON 即 GPIO27 为输出
     pi.write(27, 1)
 
-
-portInit()
-
+def init():
+    pi = pigpio.pi()  # 初始化 pigpio库
+    serialHandle = serial.Serial("/dev/ttyAMA0", 115200)  # 初始化串口， 波特率为115200
+    portInit()
 
 def portWrite():  # 配置单线串口为输出
     pi.write(27, 1)  # 拉高TX_CON 即 GPIO27
@@ -121,7 +118,7 @@ def serial_servo_read_cmd(id=None, r_cmd=None):
     :param r_cmd:
     :param dat:
     :return:
-    '''
+    https://askubuntu.com/'''
     portWrite()
     buf = bytearray(b'\x55\x55')  # 帧头
     buf.append(id)

@@ -19,6 +19,9 @@ install_requires = [
     'opencv-python',
     'smbus2',
     'pyyaml',
+    'pyserial',
+    'pigpio'
+
 ]
 
 

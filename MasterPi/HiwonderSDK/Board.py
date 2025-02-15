@@ -9,7 +9,7 @@ import OPi.GPIO as GPIO
 from smbus2 import SMBus, i2c_msg
 # from rpi_ws281x import PixelStrip
 # from rpi_ws281x import Color as PixelColor
-from .ai_pro_pin_map import _BOARD 
+from ai_pro_pin_map import _BOARD 
 #幻尔科技raspberrypi扩展板sdk#
 if sys.version_info.major == 2:
     print('Please run this program with python3!')
@@ -24,8 +24,8 @@ __SERVO_ADDR_CMD  = 40
 __motor_speed = [0, 0, 0, 0]
 __servo_angle = [0, 0, 0, 0, 0, 0]
 __servo_pulse = [0, 0, 0, 0, 0, 0]
-__i2c = 1
-__i2c_addr = 0x7A
+__i2c = 7 # i2c总线
+__i2c_addr = 0x50 #i2c设备地址
 
 GPIO.setwarnings(False)
 GPIO.setmode(_BOARD)
@@ -186,8 +186,8 @@ def getBattery():
     return ret
 
 def setBuzzer(new_state):
-    GPIO.setup(32, GPIO.OUT)
-    GPIO.output(32, new_state)
+    GPIO.setup(31, GPIO.OUT)
+    GPIO.output(31, new_state)
 
 def setBusServoID(oldid, newid):
     """
@@ -391,8 +391,6 @@ def getBusServoLoadStatus(id):
         msg = serial_servo_get_rmsg(LOBOT_SERVO_LOAD_OR_UNLOAD_READ)
         if msg is not None:
             return msg
-
-setBuzzer(0)
 
 # setMotor(1, 60)
 # setMotor(2, 60)

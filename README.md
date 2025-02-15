@@ -183,7 +183,7 @@
     print("GPIO1 value:", value)
     ```
 
-#### 安装OPI.GPIO
+#### ~~安装OPI.GPIO~~
 
 > OPI.GPIO是一个兼容RPi.GPIO的库，可以在香橙派上使用RPi.GPIO的代码。一开始尝试使用wiringOP的Python绑定，但是在使用RPi.GPIO的代码时发现有些函数没有实现，所以改用OPI.GPIO。后者的函数实现更加完整，并且基于RPi.GPIO实现，所以可以直接使用RPi.GPIO的代码。但是对OrangePiAiPro的支持并不完善，所以需要进行一些额外的设置。
 
@@ -233,6 +233,21 @@
     sudo udevadm control --reload-rules # 应用规则
     sudo udevadm trigger --subsystem-match=gpio
     ```
+#### 从源码安装GPIO
+1. clone源码
+```bash
+git clone git@github.com:rm-hull/OPi.GPIO.git
+```
+2. 修改部分函数，避免抛出异常
+```python
+# ~/OPi.GPIO/OPi/GPIO.py line 468,line 469
+# 注释掉下面这两行，避免在连续修改同一个端口时抛出异常
+        if channel in _exports:
+            raise RuntimeError("Channel {0} is already configured".format(channel))
+```
+3. 编译
+
+
 #### MasterPi源码
 
 1. 从GiHub仓库clone MasterPi SDK源码
@@ -274,3 +289,139 @@
     ```bash
     python MasterPi/main.py
     ```
+### 配置权限
+
+1. gpio权限
+
+2. tty权限
+```bash
+sudo usermod -aG tty $USER
+newgrp tty
+```
+为了不改变原有的tty用户组的权限，这里要用到acl来进行更细致的权限管理。首先检查文件系统是否支持acl
+```bash
+(base) HwHiAiUser@orangepiaipro:/$ lsblk # 查看系统中可用的磁盘和分区
+NAME        MAJ:MIN RM   SIZE RO TYPE MOUNTPOINTS
+mmcblk1     179:0    0 119.1G  0 disk 
+├─mmcblk1p1 179:1    0     1M  0 part 
+├─mmcblk1p2 179:2    0 118.8G  0 part / # 显然，这是我们使用的文件系统（也可能会是别的名字）
+└─mmcblk1p3 179:3    0    50M  0 part /exchange
+```
+使用 blkid 命令查看设备的文件系统类型：
+```
+sudo tune2fs -l /dev/<disk_name> | grep "Default mount options" # 这里的<disk_name>是上面目标文件系统的名字，例如，在上面的示例中是mmcblk1p2
+```
+如果输出中包含`acl`，则表示文件系统支持 ACL，可以继续进行下面的步骤。
+```bash
+sudo groupadd tty_r
+sudo usermod -aG tty_r $USER
+sudo setfacl -m g:tty_r:rw- /dev/tty*
+```
+```bash
+```
+```bash
+```
+
+3. i2c权限
+```bash
+sudo usermod -aG i2c $USER
+newgrp i2c
+```
+sudo i2cdetect -y 0
+
+目前遇到的问题：
+    1. 客服提供的RasAdapter 原理图是v5.3的，端口和手里的v3.6不完全一样，有一些控制模块不能确定其映射关系。已经在技术交流群&[某个线上电商](https://robu.in/product/hiwonder-rasadapter_v3-6-expansion-board/)尝试索要对应版本的datasheet。
+    2. i2c设备查找不到，怀疑是由于没有配置gpio为i2c接口。需要修改设备树，详情：
+    在 Orange Pi 上，使用 `smbus` 控制 GPIO 接口复用为 I2C 的过程分为两部分：
+
+1. **硬件层面**：通过设备树（Device Tree）或内核配置将 GPIO 引脚复用为 I2C 功能。
+2. **软件层面**：使用 Python 的 `smbus` 库与 I2C 设备通信。
+
+以下详细说明如何实现这两部分。
+
+---
+
+### 1. **硬件层面：配置 GPIO 为 I2C 功能**
+
+#### 1.1 确认 GPIO 引脚
+   - 查看 Orange Pi 的原理图或手册，确认哪些 GPIO 引脚可以复用为 I2C 功能。
+   - 例如，Orange Pi Zero 的 `PA11` 和 `PA12` 可以复用为 I2C0 的 `SCL` 和 `SDA`。
+
+#### 1.2 修改设备树
+   - 设备树用于配置硬件资源，包括 GPIO 复用功能。
+   - 找到设备树文件（通常位于 `/boot/dtb/` 或 `/boot/` 目录下），例如 `sun8i-h3-orangepi-zero.dtb`。
+   - 修改设备树文件，将 GPIO 配置为 I2C 功能。
+
+##### 示例：配置 GPIO 为 I2C
+   假设需要将 `PA11` 和 `PA12` 配置为 I2C0 的 `SCL` 和 `SDA`：
+   ```dts
+   &i2c0 {
+       pinctrl-names = "default";
+       pinctrl-0 = <&i2c0_pins>;
+       status = "okay";
+   };
+
+   &pio {
+       i2c0_pins: i2c0_pins {
+           pins = "PA11", "PA12";
+           function = "i2c0";
+       };
+   };
+   ```
+
+#### 1.3 编译并加载设备树
+   - 如果修改了设备树源文件（`.dts`），需要将其编译为二进制文件（`.dtb`）。
+   - 使用 `dtc` 工具编译：
+     ```bash
+     dtc -I dts -O dtb -o sun8i-h3-orangepi-zero.dtb sun8i-h3-orangepi-zero.dts
+     ```
+   - 将编译好的设备树文件复制到 `/boot/` 目录，并更新引导配置。
+   - 重启系统以应用更改：
+     ```bash
+     sudo reboot
+     ```
+
+#### 1.4 验证 I2C 配置
+   - 使用 `i2cdetect` 工具检查 I2C 总线是否正常工作：
+     ```bash
+     sudo apt install i2c-tools
+     sudo i2cdetect -l
+     sudo i2cdetect -y 0
+     ```
+   - 如果看到 I2C 设备地址，说明配置成功。
+
+---
+
+### 2. **软件层面：使用 `smbus` 控制 I2C**
+
+#### 2.1 安装 `smbus` 库
+   - 在 Python 中，`smbus` 是一个用于与 I2C 设备通信的库。
+   - 安装 `smbus`：
+     ```bash
+     sudo apt update
+     sudo apt install python3-smbus
+     ```
+
+#### 2.2 编写 Python 脚本
+   - 使用 `smbus` 库与 I2C 设备通信。
+
+##### 示例：读取 I2C 设备数据
+   ```python
+   import smbus
+
+   # 初始化 I2C 总线
+   bus = smbus.SMBus(0)  # 0 表示 I2C0 总线
+
+   # I2C 设备地址
+   device_address = 0x50  # 替换为实际的设备地址
+
+   # 读取一个字节
+   def read_byte(register):
+       return bus.read_byte_data(device_address, register)
+
+   # 写入一个字节
+   def write_byte(register, value):
+       bus.write_byte_data(device_address, register, value)
+
+   # 示例：读取寄存器 0x00 的值
+   v

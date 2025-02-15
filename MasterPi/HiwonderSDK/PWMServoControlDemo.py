@@ -5,7 +5,7 @@ sys.path.append('/home/pi/MasterPi/')
 import time
 import signal
 import threading
-import HiwonderSDK.Board as Board
+import MasterPi.HiwonderSDK.Board as Board
 
 if sys.version_info.major == 2:
     print('Please run this program with python3!')

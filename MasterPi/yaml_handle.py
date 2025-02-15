@@ -1,6 +1,6 @@
 import yaml
-lab_file_path = '/home/pi/MasterPi/lab_config.yaml'
-Deviation_file_path = '/home/pi/MasterPi/Deviation.yaml'
+lab_file_path = '/home/HwHiAiUser/MasterPi/MasterPi/lab_config.yaml'# TODO 这里的地址不要用绝对路径写2025/02/15 HefeiWang
+Deviation_file_path = '/home/HwHiAiUser/MasterPi/MasterPi/Deviation.yaml'# TODO 这里的地址不要用绝对路径写2025/02/15 HefeiWang
 
 def get_yaml_data(yaml_file):
     file = open(yaml_file, 'r', encoding='utf-8')
