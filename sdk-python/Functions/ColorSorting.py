@@ -76,22 +76,23 @@ def setBuzzer(timer):
 
 #设置扩展板的RGB灯颜色使其跟要追踪的颜色一致
 def set_rgb(color):
-    if color == "red":
-        Board.RGB.setPixelColor(0, Board.PixelColor(255, 0, 0))
-        Board.RGB.setPixelColor(1, Board.PixelColor(255, 0, 0))
-        Board.RGB.show()
-    elif color == "green":
-        Board.RGB.setPixelColor(0, Board.PixelColor(0, 255, 0))
-        Board.RGB.setPixelColor(1, Board.PixelColor(0, 255, 0))
-        Board.RGB.show()
-    elif color == "blue":
-        Board.RGB.setPixelColor(0, Board.PixelColor(0, 0, 255))
-        Board.RGB.setPixelColor(1, Board.PixelColor(0, 0, 255))
-        Board.RGB.show()
-    else:
-        Board.RGB.setPixelColor(0, Board.PixelColor(0, 0, 0))
-        Board.RGB.setPixelColor(1, Board.PixelColor(0, 0, 0))
-        Board.RGB.show()
+    pass
+    # if color == "red":
+    #     Board.RGB.setPixelColor(0, Board.PixelColor(255, 0, 0))
+    #     Board.RGB.setPixelColor(1, Board.PixelColor(255, 0, 0))
+    #     Board.RGB.show()
+    # elif color == "green":
+    #     Board.RGB.setPixelColor(0, Board.PixelColor(0, 255, 0))
+    #     Board.RGB.setPixelColor(1, Board.PixelColor(0, 255, 0))
+    #     Board.RGB.show()
+    # elif color == "blue":
+    #     Board.RGB.setPixelColor(0, Board.PixelColor(0, 0, 255))
+    #     Board.RGB.setPixelColor(1, Board.PixelColor(0, 0, 255))
+    #     Board.RGB.show()
+    # else:
+    #     Board.RGB.setPixelColor(0, Board.PixelColor(0, 0, 0))
+    #     Board.RGB.setPixelColor(1, Board.PixelColor(0, 0, 0))
+    #     Board.RGB.show()
 
 count = 0
 _stop = False
@@ -126,10 +127,10 @@ def reset():
 def init():
     print("ColorSorting Init")
     # 超声波开启后默认关闭灯
-    HWSONAR.setRGBMode(0)
-    HWSONAR.setPixelColor(0, Board.PixelColor(0,0,0))
-    HWSONAR.setPixelColor(1, Board.PixelColor(0,0,0))    
-    HWSONAR.show()
+    # HWSONAR.setRGBMode(0)
+    # HWSONAR.setPixelColor(0, Board.PixelColor(0,0,0))
+    # HWSONAR.setPixelColor(1, Board.PixelColor(0,0,0))    
+    # HWSONAR.show()
     load_config()
     initMove()
 
@@ -368,7 +369,7 @@ if __name__ == '__main__':
     init()
     start()
     __target_color = ('red', 'green', 'blue')
-    cap = cv2.VideoCapture('http://127.0.0.1:8080?action=stream')
+    cap = cv2.VideoCapture(0)
     while True:
         ret,img = cap.read()
         if ret:

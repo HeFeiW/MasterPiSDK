@@ -313,7 +313,7 @@ def run(img):
 if __name__ == '__main__':
     init()
     start()
-    cap = cv2.VideoCapture('http://127.0.0.1:8080?action=stream')
+    cap = cv2.VideoCapture(0)
     while True:
         ret,img = cap.read()
         if ret:

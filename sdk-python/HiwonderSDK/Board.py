@@ -206,9 +206,10 @@ def getBattery():
            
     return ret
 
-# def setBuzzer(new_state):
-#     GPIO.setup(31, GPIO.OUT)
-#     GPIO.output(31, new_state)
+def setBuzzer(new_state):
+    pass
+    # GPIO.setup(31, GPIO.OUT)
+    # GPIO.output(31, new_state)
 
 # def setBusServoID(oldid, newid):
 #     """

@@ -2,7 +2,7 @@ import os
 import sys
 sys.path.append('/root/thuei-1/sdk-python/')
 import time
-import HiwonderSDK.Board
+import HiwonderSDK.Board as Board
 from smbus2 import SMBus, i2c_msg
 
 # 幻尔科技iic超声波库
@@ -31,7 +31,7 @@ class Sonar:
     __RGB2_B_BREATHING_CYCLE = 14
     def __init__(self):
         self.i2c_addr = 0x77
-        self.i2c = 1
+        self.i2c = 7
         self.Pixels = [0,0]
         self.RGBMode = 0
 
