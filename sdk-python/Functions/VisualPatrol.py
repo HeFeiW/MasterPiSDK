@@ -20,6 +20,8 @@ AK = ArmIK()
 pitch_pid = PID(P=0.28, I=0.16, D=0.18)
 global horizontal_detected
 horizontal_detected = False
+global vertical_detected
+vertical_detected = False
 
 range_rgb = {
     'red': (0, 0, 255),
@@ -61,8 +63,10 @@ line_centerx = -1
 def reset():
     global line_centerx
     global __target_color
+    global horizontal_detected
     
     line_centerx = -1
+    horizontal_detected = False
     __target_color = ()
     
 # app初始化调用
@@ -175,6 +179,7 @@ def run(img):
     global __target_color
     global horizontal_detected
     
+    horizontal_detected = False  # Reset at the beginning of each detection
     img_copy = img.copy()
     img_h, img_w = img.shape[:2]
     
@@ -217,9 +222,9 @@ def run(img):
             angle = rect[2]#矩形的倾斜角度
             if angle < -45:
                 angle += 90
-            # Check if line is horizontal (within ±10°)
-            if abs(angle) < 10:
-                horizontal_detected = True
+            # Check if line is horizontal (within ±10° of 0°)
+            # 水平线角度接近0度
+            horizontal_detected = abs(angle) < 10
             for i in range(4):
                 box[i, 1] = box[i, 1] + (n - 1)*roi_h + roi[0][0]
                 box[i, 1] = int(Misc.map(box[i, 1], 0, size[1], 0, img_h))
@@ -259,8 +264,8 @@ if __name__ == '__main__':
     init()
     start()
     signal.signal(signal.SIGINT, Stop)
-    cap = cv2.VideoCapture('http://127.0.0.1:8080?action=stream')
-    __target_color = ('red',)
+    cap = cv2.VideoCapture(0)
+    __target_color = ('green',)
     while __isRunning:
         ret,img = cap.read()
         if ret:

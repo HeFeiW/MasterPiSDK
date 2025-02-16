@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 from ArmIK.InverseKinematics import *
 from ArmIK.Transform import getAngle
 from mpl_toolkits.mplot3d import Axes3D
-from HiwonderSDK.Board import setBusServoPulse,getBusServoPulse, setPWMServoPulse, getPWMServoPulse
+from HiwonderSDK.Board import  setPWMServoPulse, getPWMServoPulse
 
 #机械臂根据逆运动学算出的角度进行移动
 ik = IK('arm')

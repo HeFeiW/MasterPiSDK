@@ -325,7 +325,7 @@ if __name__ == '__main__':
     __isRunning = True
     __target_color = ('red')
     signal.signal(signal.SIGINT, Stop)
-    cap = cv2.VideoCapture('http://127.0.0.1:8080?action=stream')
+    cap = cv2.VideoCapture(0)
     while __isRunning:
         ret,img = cap.read()
         if ret:
