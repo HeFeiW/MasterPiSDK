@@ -23,12 +23,11 @@ Tips:
 ----------------------------------------------------------
 ''')
 
-chassis = mecanum.MecanumChassis(wheel_init_dir=[1, 1, 1, 1], wheel_init_map=[2, 4, 1, 3])
-# 1 - 3
-# 2 - 1
-# 3 - 4
-# 4 - 2
-
+chassis = mecanum.MecanumChassis(wheel_init_dir=[1, 1, 1, 1], wheel_init_map=[1,3,4,2])
+# 1:1
+# 2:4
+# 3:2
+# 4:3
 start = True
 #关闭前处理
 def Stop(signum, frame):

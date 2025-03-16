@@ -35,15 +35,15 @@ def Stop(signum, frame):
 signal.signal(signal.SIGINT, Stop)
 
 if __name__ == '__main__':
-    
+    id =4
     while True:
-        Board.setPWMServoPulse(1, 1500, 1000) # 设置1号舵机脉宽为1500，运行时间为1000毫秒
+        Board.setPWMServoPulse(id, 1500, 1000) # 设置1号舵机脉宽为1500，运行时间为1000毫秒
         time.sleep(1)
-        Board.setPWMServoPulse(1, 2500, 1000) # 设置1号舵机脉宽为2500，运行时间为1000毫秒
+        Board.setPWMServoPulse(id, 2500, 1000) # 设置1号舵机脉宽为2500，运行时间为1000毫秒
         time.sleep(1)
         
         if not start:
-            Board.setPWMServoPulse(1, 1500, 1000) # 设置1号舵机脉宽为1500，运行时间为1000毫秒
+            Board.setPWMServoPulse(id, 1500, 1000) # 设置1号舵机脉宽为1500，运行时间为1000毫秒
             time.sleep(1)
             print('已关闭')
             break

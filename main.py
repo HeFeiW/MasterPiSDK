@@ -12,66 +12,21 @@ from ArmIK.ArmMoveIK import *
 import HiwonderSDK.Sonar as Sonar
 import HiwonderSDK.Board as Board
 from CameraCalibration.CalibrationConfig import *
-
+from HiwonderSDK.PID import PID
 if sys.version_info.major == 2:
     print('Please run this program with python3!')
     sys.exit(0)
 
 AK = ArmIK()
 HWSONAR = Sonar.Sonar() #超声波传感器
-
-range_rgb = {
-    'red':   (0, 0, 255),
-    'blue':  (255, 0, 0),
-    'green': (0, 255, 0),
-    'black': (0, 0, 0),
-    'white': (255, 255, 255),
-}
-
-lab_data = None
-def load_config():
-    global lab_data, servo_data
-    
-    lab_data = yaml_handle.get_yaml_data(yaml_handle.lab_file_path)
-
-__target_color = ('red')
-# 设置检测颜色
-def setTargetColor(target_color):
-    global __target_color
-
-    print("COLOR", target_color)
-    __target_color = target_color
-    return (True, ())
-
-#找出面积最大的轮廓
-#参数为要比较的轮廓的列表
-def getAreaMaxContour(contours) :
-        contour_area_temp = 0
-        contour_area_max = 0
-        area_max_contour = None
-
-        for c in contours : #历遍所有轮廓
-            contour_area_temp = math.fabs(cv2.contourArea(c))  #计算轮廓面积
-            if contour_area_temp > contour_area_max:
-                contour_area_max = contour_area_temp
-                if contour_area_temp > 300:  #只有在面积大于300时，最大面积的轮廓才是有效的，以过滤干扰
-                    area_max_contour = c
-
-        return area_max_contour, contour_area_max  #返回最大的轮廓
-
-# 夹持器夹取时闭合的角度
-servo1 = 1500
-
-# 初始位置
-def initMove():
-    Board.setPWMServoPulse(1, servo1, 800)
-    AK.setPitchRangeMoving((0, 8, 10), -90, -90, 0, 1500)
+pitch_pid = PID(P=0.28, I=0.16, D=0.18) #Pid要调参啊
 
 def setBuzzer(timer):
-    Board.setBuzzer(0)
-    Board.setBuzzer(1)
-    time.sleep(timer)
-    Board.setBuzzer(0)
+    return
+    # Board.setBuzzer(0)
+    # Board.setBuzzer(1)
+    # time.sleep(timer)
+    # Board.setBuzzer(0)
     
 
 #设置扩展板的RGB灯颜色使其跟要追踪的颜色一致
@@ -102,7 +57,7 @@ __isRunning = False
 detect_color = 'None'
 start_pick_up = False
 start_count_t1 = True
-
+line_centerx = -1 # whf added according to visual patrol
 # 变量重置
 def reset():
     global _stop
@@ -113,7 +68,9 @@ def reset():
     global start_pick_up
     global __target_color
     global start_count_t1
-
+    global line_centerx
+    
+    line_centerx = -1
     count = 0
     _stop = False
     color_list = []
@@ -122,7 +79,9 @@ def reset():
     detect_color = 'None'
     start_pick_up = False
     start_count_t1 = True
-
+#************************************************************
+# 全局开始/停止函数
+#************************************************************
 # app初始化调用
 def init():
     print("ColorSorting Init")
@@ -130,7 +89,7 @@ def init():
     # HWSONAR.setRGBMode(0)
     # HWSONAR.setPixelColor(0, Board.PixelColor(0,0,0))
     # HWSONAR.setPixelColor(1, Board.PixelColor(0,0,0))    
-    HWSONAR.show()
+    # HWSONAR.show()
     load_config()
     initMove()
 
@@ -143,11 +102,12 @@ def start():
 
 # app停止玩法调用
 def stop():
-    global _stop
+    global _stop #_stop 是干什么用的？
     global __isRunning
     _stop = True
     __isRunning = False
     # set_rgb('None')
+    MotorStop() # whf added according to visual patrol
     print("ColorSorting Stop")
 
 # app退出玩法调用
@@ -157,15 +117,28 @@ def exit():
     _stop = True
     # set_rgb('None')
     __isRunning = False
+    MotorStop() # whf added according to visual patrol
     print("ColorSorting Exit")
+#************************************************************
+# 运动控制API
+#************************************************************
 
+# 夹持器夹取时闭合的角度
+servo1 = 1500
 
-rect = None
-size = (640, 480)
-rotation_angle = 0
-unreachable = False 
-world_X, world_Y = 0, 0
-def move():
+# 初始位置
+def initMove():
+    Board.setPWMServoPulse(1, servo1, 800)
+    AK.setPitchRangeMoving((0, 8, 10), -90, -90, 0, 1500)
+    MotorStop() # whf added according to visual patrol
+
+def MotorStop():
+    Board.setMotor(1, 0) 
+    Board.setMotor(2, 0)
+    Board.setMotor(3, 0)
+    Board.setMotor(4, 0)
+
+def move_arm():
     global rect
     global _stop
     global get_roi
@@ -175,7 +148,8 @@ def move():
     global start_pick_up
     global rotation_angle
     global world_X, world_Y
-    
+    global temp_targ
+    global line_centerx
     #放置坐标
     coordinate = {
         'red':   (-15, 14, 2),
@@ -186,21 +160,26 @@ def move():
     
     while True:
         if __isRunning:        
+            print(f"start_pick_up:{start_pick_up}")
             if detect_color != 'None' and start_pick_up:  #如果检测到方块,开始夹取
                 
                 # set_rgb(detect_color) # 设置扩展板上的彩灯与检测到的颜色一样
                 # setBuzzer(0.1)     # 设置蜂鸣器响0.1秒
-                
-                AK.setPitchRangeMoving((0, 6, 18), 0,-90, 90, 1500) # 机械臂抬起来
+                # (0,6,18)
+                Board.setPWMServoPulse(1, 2000, 500) # 张开爪子
+                success = AK.setPitchRangeMoving(temp_targ, -90,-135, -45, 1500) 
+                if not success:
+                    return False
                 time.sleep(1.5)
                 if not __isRunning:  # 检测是否停止玩法
                     continue
-                Board.setPWMServoPulse(1, 2000, 500) # 张开爪子
+                
                 time.sleep(1.5)
                 if not __isRunning:
                     continue
                 Board.setPWMServoPulse(1, 1500, 500) # 闭合爪子
                 time.sleep(1.5)
+                result = AK.setPitchRangeMoving((temp_targ[0],temp_targ[1],8), -90, -90, 0)
                 if not __isRunning:
                     continue
                 if detect_color == 'red':       # 根据检测到的颜色，机械臂转动到对应角度
@@ -259,21 +238,97 @@ def move():
                 _stop = False
                 initMove()
             time.sleep(0.01)
-          
-#运行子线程
-th = threading.Thread(target=move)
-th.setDaemon(True)
-th.start()    
+def move_base():
+    global line_centerx
 
-t1 = 0
-roi = ()
-center_list = []
-last_x, last_y = 0, 0
-draw_color = range_rgb["black"]
-length = 50
-w_start = 200
-h_start = 200
-def run(img):
+    i = 0
+    while True:
+        if __isRunning:
+            if line_centerx != -1:
+                
+                num = (line_centerx - img_centerx)
+                if abs(num) <= 5:  # 偏差比较小，不进行处理
+                    pitch_pid.SetPoint = num
+                else:
+                    pitch_pid.SetPoint = 0
+                pitch_pid.update(num) 
+                tmp = pitch_pid.output    # 获取PID输出值
+                tmp = 100 if tmp > 100 else tmp   
+                tmp = -100 if tmp < -100 else tmp
+                base_speed = Misc.map(tmp, -100, 100, -50, 50)  # 速度进行映射
+                Board.setMotor(1, int(50-base_speed)) #设置马达速度
+                Board.setMotor(2, int(50+base_speed))
+                Board.setMotor(3, int(50-base_speed))
+                Board.setMotor(4, int(50+base_speed))
+                
+            else:
+                MotorStop()
+                time.sleep(0.01)
+        else:
+            time.sleep(0.01)
+
+#************************************************************
+# CV API
+#************************************************************
+rect = None
+size = (640, 480)
+rotation_angle = 0
+unreachable = False 
+world_X, world_Y = 0, 0
+img_centerx = 320
+
+range_rgb = {
+    'red':   (0, 0, 255),
+    'blue':  (255, 0, 0),
+    'green': (0, 255, 0),
+    'black': (0, 0, 0),
+    'white': (255, 255, 255),
+}
+
+roi = [ # [ROI, weight]
+        (240, 280,  0, 640, 0.1), 
+        (340, 380,  0, 640, 0.3), 
+        (430, 460,  0, 640, 0.6)
+       ]
+
+roi_h1 = roi[0][0]
+roi_h2 = roi[1][0] - roi[0][0]
+roi_h3 = roi[2][0] - roi[1][0]
+
+roi_h_list = [roi_h1, roi_h2, roi_h3]
+
+size = (640, 480)
+lab_data = None
+def load_config():
+    global lab_data, servo_data
+    
+    lab_data = yaml_handle.get_yaml_data(yaml_handle.lab_file_path)
+
+__target_color = ('red')
+# 设置检测颜色
+def setTargetColor(target_color):
+    global __target_color
+
+    print("COLOR", target_color)
+    __target_color = target_color
+    return (True, ())
+
+#找出面积最大的轮廓
+#参数为要比较的轮廓的列表
+def getAreaMaxContour(contours) :
+        contour_area_temp = 0
+        contour_area_max = 0
+        area_max_contour = None
+
+        for c in contours : #历遍所有轮廓
+            contour_area_temp = math.fabs(cv2.contourArea(c))  #计算轮廓面积
+            if contour_area_temp > contour_area_max:
+                contour_area_max = contour_area_temp
+                if contour_area_temp > 300:  #只有在面积大于300时，最大面积的轮廓才是有效的，以过滤干扰
+                    area_max_contour = c
+
+        return area_max_contour, contour_area_max  #返回最大的轮廓
+def run_block(img):
     global roi
     global rect
     global count
@@ -337,7 +392,7 @@ def run(img):
                 else:
                     color = 0
                 color_list.append(color)
-
+                # print(f"color_list:{color_list}")
                 if len(color_list) == 3:  #多次判断
                     # 取平均值
                     color = int(round(np.mean(np.array(color_list))))
@@ -364,23 +419,127 @@ def run(img):
 
     cv2.putText(img, "Color: " + detect_color, (10, img.shape[0] - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.65, draw_color, 2)
     return img
+def run_line(img):
+    global line_centerx
+    global __target_color
+    
+    img_copy = img.copy()
+    img_h, img_w = img.shape[:2]
+    
+    if not __isRunning or __target_color == ():
+        return img
+     
+    frame_resize = cv2.resize(img_copy, size, interpolation=cv2.INTER_NEAREST)
+    frame_gb = cv2.GaussianBlur(frame_resize, (3, 3), 3)         
+    centroid_x_sum = 0
+    weight_sum = 0
+    center_ = []
+    n = 0
+
+    #将图像分割成上中下三个部分，这样处理速度会更快，更精确
+    for r in roi:
+        roi_h = roi_h_list[n]
+        n += 1       
+        # print(f"r:{r}")
+        blobs = frame_gb[r[0]:r[1], r[2]:r[3]]
+        frame_lab = cv2.cvtColor(blobs, cv2.COLOR_BGR2LAB)  # 将图像转换到LAB空间
+        area_max = 0
+        areaMaxContour = 0
+        for i in lab_data:
+            if i in __target_color:
+                detect_color = i
+                frame_mask = cv2.inRange(frame_lab,
+                                         (lab_data[i]['min'][0],
+                                          lab_data[i]['min'][1],
+                                          lab_data[i]['min'][2]),
+                                         (lab_data[i]['max'][0],
+                                          lab_data[i]['max'][1],
+                                          lab_data[i]['max'][2]))  #对原图像和掩模进行位运算
+                eroded = cv2.erode(frame_mask, cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3)))  #腐蚀
+                dilated = cv2.dilate(eroded, cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))) #膨胀
+
+        cnts = cv2.findContours(dilated , cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_TC89_L1)[-2]#找出所有轮廓
+        cnt_large, area = getAreaMaxContour(cnts)#找到最大面积的轮廓
+        if cnt_large is not None:#如果轮廓不为空
+            rect = cv2.minAreaRect(cnt_large)#最小外接矩形
+            box = np.int0(cv2.boxPoints(rect))#最小外接矩形的四个顶点
+            for i in range(4):
+                box[i, 1] = box[i, 1] + (n - 1)*roi_h + roi[0][0]
+                box[i, 1] = int(Misc.map(box[i, 1], 0, size[1], 0, img_h))
+            for i in range(4):                
+                box[i, 0] = int(Misc.map(box[i, 0], 0, size[0], 0, img_w))
+
+            cv2.drawContours(img, [box], -1, (0,0,255,255), 2)#画出四个点组成的矩形
+        
+            #获取矩形的对角点
+            pt1_x, pt1_y = box[0, 0], box[0, 1]
+            pt3_x, pt3_y = box[2, 0], box[2, 1]            
+            center_x, center_y = (pt1_x + pt3_x) / 2, (pt1_y + pt3_y) / 2#中心点       
+            cv2.circle(img, (int(center_x), int(center_y)), 5, (0,0,255), -1)#画出中心点         
+            center_.append([center_x, center_y])                        
+            #按权重不同对上中下三个中心点进行求和
+            centroid_x_sum += center_x * r[4]
+            weight_sum += r[4]
+    if weight_sum is not 0:
+        #求最终得到的中心点
+        cv2.circle(img, (line_centerx, int(center_y)), 10, (0,255,255), -1)#画出中心点
+        line_centerx = int(centroid_x_sum / weight_sum)  
+    else:
+        line_centerx = -1
+    return img
+ 
+#运行子线程
+th = threading.Thread(target=move_arm)
+th.setDaemon(True)
+# th.start()    
+ 
+# # 运行子线程
+# th = threading.Thread(target=move_base)
+# th.setDaemon(True)
+# th.start()
+
+t1 = 0
+roi = ()
+center_list = []
+last_x, last_y = 0, 0
+draw_color = range_rgb["black"]
+length = 50
+w_start = 200
+h_start = 200
 
 if __name__ == '__main__':
     init()
     start()
-    __target_color = ('red', 'green', 'blue')
+    temp_targ = (0,6,18)
+    __target_color = ('green','blue')
     cap = cv2.VideoCapture(0)
     while True:
         ret,img = cap.read()
         if ret:
             frame = img.copy()
-            Frame = run(frame)  
-            print(f"frame.shape():{frame.shape}")
+            img_h, img_w = frame.shape[:2]
+            # 将图像的下1/4部分设置为黑色
+            frame[int(img_h * 3 / 4):, :] = np.random.randint(0, 256, (int(img_h / 4), img_w, 3), dtype=np.uint8)
+            Frame = run_block(frame)
+            # print(f"frame.shape():{frame.shape}")
             frame_resize = cv2.resize(Frame, (640, 480))
             roi = getROI(cv2.boxPoints(rect))
             roi_rounded = tuple(int(round(value)) for value in roi)
             frame_roi = getMaskROI(frame_resize,roi_rounded,(640,480))
-            cv2.imshow('frame', frame_roi)
+            
+            # cv2.imshow('frame', frame)#temp
+            # 在frame上画出rect
+            if rect is not None:
+                x_i,y_i = getCenter(rect, roi_rounded, (640,480), 3)
+                x,y = convertCoordinate(x_i,y_i,(640,480))
+                print(f'x:{x},y:{y}')
+                temp_targ= (x,y,-2)
+                box = cv2.boxPoints(rect)
+                box = np.int0(box)
+                cv2.drawContours(frame, [box], 0, (0, 255, 0), 2)
+            
+            # 保存frame图像为frame.jpg
+            cv2.imwrite('/root/frame.jpg', frame)
             key = cv2.waitKey(1)
             if key == 27:
                 break

@@ -7,18 +7,21 @@ import threading
 import HiwonderSDK.Board as Board
 
 class MecanumChassis:
-    # A = 67  # mm
-    # B = 59  # mm
+    # A = 67  # mm # 可能是轮子中心到x轴距离
+    # B = 59  # mm # 可能是轮子中心到y轴距离
     # WHEEL_DIAMETER = 65  # mm
 
-    def __init__(self, a=67, b=59, wheel_diameter=65, wheel_init_dir=[1, 1, 1, 1], wheel_init_map=[1,2,3,4]):
+    def __init__(self, a=67, b=59, wheel_diameter=65, wheel_init_dir=None, wheel_init_map=None):
         self.a = a
         self.b = b
         self.wheel_diameter = wheel_diameter
         self.velocity = 0
         self.direction = 0
         self.angular_rate = 0
-        Board.initMotors(motor_init_dir=wheel_init_dir, motor_init_map=wheel_init_map)
+        if wheel_init_map is not None and wheel_init_dir is not None:
+            Board.initMotors(motor_init_dir=wheel_init_dir, motor_init_map=wheel_init_map)
+        else:
+            Board.initMotors()
 
     def reset_motors(self):
         for i in range(1, 5):
@@ -77,4 +80,7 @@ class MecanumChassis:
             return velocity, direction
         else:
             return self.set_velocity(velocity, direction, 0)
+    def get_velocities(self):
+        return self.velocity = velocity,self.direction = direction,self.angular_rate = angular_rate
+
 

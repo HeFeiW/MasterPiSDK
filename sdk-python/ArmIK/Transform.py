@@ -56,6 +56,7 @@ def getROI(box):
 #除roi区域外全部变成黑色
 #传入图形，roi区域，图形分辨率
 def getMaskROI(frame, roi, size):
+    print(roi)
     x_min, x_max, y_min, y_max = roi
     x_min -= 10
     x_max += 10
@@ -81,6 +82,7 @@ def getMaskROI(frame, roi, size):
 # 传入minAreaRect函数返回的rect对象， 木快极值点， 图像分辨率， 木块边长
 def getCenter(rect, roi, size, square_length):
     x_min, x_max, y_min, y_max = roi
+    print(f'rect{rect}')
     #根据木块中心的坐标，来选取最靠近图像中心的顶点，作为计算准确中心的基准
     if rect[0][0] >= size[0]/2:
         x = x_max 

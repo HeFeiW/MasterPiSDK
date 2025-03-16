@@ -31,7 +31,7 @@ class Sonar:
     __RGB2_B_BREATHING_CYCLE = 14
     def __init__(self):
         self.i2c_addr = 0x77
-        self.i2c = 1
+        self.i2c = 7
         self.Pixels = [0,0]
         self.RGBMode = 0
 
@@ -115,23 +115,23 @@ class Sonar:
 
 if __name__ == '__main__':
     s = Sonar()
-    s.setRGBMode(0)
-    s.setPixelColor(0, Board.PixelColor(0, 0, 0))
-    s.setPixelColor(1, Board.PixelColor(0, 0, 0))
-    s.show()
-    time.sleep(0.1)
-    s.setPixelColor(0, Board.PixelColor(255, 0, 0))
-    s.setPixelColor(1, Board.PixelColor(255, 0, 0))
-    s.show()
-    time.sleep(1)
-    s.setPixelColor(0, Board.PixelColor(0, 255, 0))
-    s.setPixelColor(1, Board.PixelColor(0, 255, 0))
-    s.show()
-    time.sleep(1)
-    s.setPixelColor(0, Board.PixelColor(0, 0, 255))
-    s.setPixelColor(1, Board.PixelColor(0, 0, 255))
-    s.show()
-    time.sleep(1)
+    # # s.setRGBMode(0)
+    # # s.setPixelColor(0, Board.PixelColor(0, 0, 0))
+    # # s.setPixelColor(1, Board.PixelColor(0, 0, 0))
+    # # s.show()
+    # time.sleep(0.1)
+    # s.setPixelColor(0, Board.PixelColor(255, 0, 0))
+    # s.setPixelColor(1, Board.PixelColor(255, 0, 0))
+    # s.show()
+    # time.sleep(1)
+    # s.setPixelColor(0, Board.PixelColor(0, 255, 0))
+    # s.setPixelColor(1, Board.PixelColor(0, 255, 0))
+    # s.show()
+    # time.sleep(1)
+    # s.setPixelColor(0, Board.PixelColor(0, 0, 255))
+    # s.setPixelColor(1, Board.PixelColor(0, 0, 255))
+    # s.show()
+    # time.sleep(1)
     s.startSymphony()
     while True:
         time.sleep(1)

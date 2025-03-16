@@ -375,12 +375,8 @@ if __name__ == '__main__':
         if ret:
             frame = img.copy()
             Frame = run(frame)  
-            print(f"frame.shape():{frame.shape}")
-            frame_resize = cv2.resize(Frame, (640, 480))
-            roi = getROI(cv2.boxPoints(rect))
-            roi_rounded = tuple(int(round(value)) for value in roi)
-            frame_roi = getMaskROI(frame_resize,roi_rounded,(640,480))
-            cv2.imshow('frame', frame_roi)
+            frame_resize = cv2.resize(Frame, (320, 240))
+            cv2.imshow('frame', frame_resize)
             key = cv2.waitKey(1)
             if key == 27:
                 break

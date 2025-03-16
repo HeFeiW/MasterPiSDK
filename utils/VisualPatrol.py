@@ -138,10 +138,11 @@ def move():
                 tmp = 100 if tmp > 100 else tmp   
                 tmp = -100 if tmp < -100 else tmp
                 base_speed = Misc.map(tmp, -100, 100, -50, 50)  # 速度进行映射
-                Board.setMotor(1, int(50-base_speed)) #设置马达速度
-                Board.setMotor(2, int(50+base_speed))
-                Board.setMotor(3, int(50-base_speed))
-                Board.setMotor(4, int(50+base_speed))
+                # Board.setMotor(1, int(50-base_speed)) #设置马达速度
+                # Board.setMotor(2, int(50+base_speed))
+                # Board.setMotor(3, int(50-base_speed))
+                # Board.setMotor(4, int(50+base_speed))
+                print(f"Motor speed:{int(50-base_speed),int(50+base_speed),int(50-base_speed),int(50+base_speed)}")
                 
             else:
                 MotorStop()
@@ -227,7 +228,7 @@ def run(img):
             #按权重不同对上中下三个中心点进行求和
             centroid_x_sum += center_x * r[4]
             weight_sum += r[4]
-    if weight_sum is not 0:
+    if weight_sum != 0:
         #求最终得到的中心点
         cv2.circle(img, (line_centerx, int(center_y)), 10, (0,255,255), -1)#画出中心点
         line_centerx = int(centroid_x_sum / weight_sum)  
@@ -251,7 +252,7 @@ if __name__ == '__main__':
     
     signal.signal(signal.SIGINT, Stop)
     cap = cv2.VideoCapture(0)
-    __target_color = ('red',)
+    __target_color = ('green',)
     while __isRunning:
         ret,img = cap.read()
         if ret:
