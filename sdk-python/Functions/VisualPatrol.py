@@ -18,6 +18,8 @@ from HiwonderSDK.PID import PID
 
 AK = ArmIK()
 pitch_pid = PID(P=0.28, I=0.16, D=0.18)
+global horizontal_detected
+horizontal_detected = False
 
 range_rgb = {
     'red': (0, 0, 255),
@@ -122,11 +124,12 @@ def getAreaMaxContour(contours):
 img_centerx = 320
 def move():
     global line_centerx
+    global horizontal_detected
 
     i = 0
     while True:
         if __isRunning:
-            if line_centerx != -1:
+            if line_centerx != -1 and not horizontal_detected:
                 
                 num = (line_centerx - img_centerx)
                 if abs(num) <= 5:  # 偏差比较小，不进行处理
@@ -147,7 +150,7 @@ def move():
                 MotorStop()
                 time.sleep(0.01)
         else:
-            time.sleep(0.01)
+            time.sleep(0.01)        
  
 # 运行子线程
 th = threading.Thread(target=move)
@@ -170,6 +173,7 @@ size = (640, 480)
 def run(img):
     global line_centerx
     global __target_color
+    global horizontal_detected
     
     img_copy = img.copy()
     img_h, img_w = img.shape[:2]
@@ -177,7 +181,7 @@ def run(img):
     if not __isRunning or __target_color == ():
         return img
      
-    frame_resize = cv2.resize(img_copy, size, interpolation=cv2.INTER_NEAREST)
+    frame_resize = cv2.resize(img_copy, size, interpolation=cv2.INTER_NEAREST) 
     frame_gb = cv2.GaussianBlur(frame_resize, (3, 3), 3)         
     centroid_x_sum = 0
     weight_sum = 0
@@ -210,6 +214,12 @@ def run(img):
         if cnt_large is not None:#如果轮廓不为空
             rect = cv2.minAreaRect(cnt_large)#最小外接矩形
             box = np.int0(cv2.boxPoints(rect))#最小外接矩形的四个顶点
+            angle = rect[2]#矩形的倾斜角度
+            if angle < -45:
+                angle += 90
+            # Check if line is horizontal (within ±10°)
+            if abs(angle) < 10:
+                horizontal_detected = True
             for i in range(4):
                 box[i, 1] = box[i, 1] + (n - 1)*roi_h + roi[0][0]
                 box[i, 1] = int(Misc.map(box[i, 1], 0, size[1], 0, img_h))
@@ -227,10 +237,11 @@ def run(img):
             #按权重不同对上中下三个中心点进行求和
             centroid_x_sum += center_x * r[4]
             weight_sum += r[4]
-    if weight_sum is not 0:
-        #求最终得到的中心点
-        cv2.circle(img, (line_centerx, int(center_y)), 10, (0,255,255), -1)#画出中心点
-        line_centerx = int(centroid_x_sum / weight_sum)  
+    if horizontal_detected:
+        line_centerx = -1  # Stop motors
+        cv2.putText(img, "STOP", (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
+    elif weight_sum != 0:
+        line_centerx = int(centroid_x_sum / weight_sum)
     else:
         line_centerx = -1
     return img
