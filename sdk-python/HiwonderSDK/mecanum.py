@@ -11,7 +11,7 @@ class MecanumChassis:
     # B = 59  # mm
     # WHEEL_DIAMETER = 65  # mm
 
-    def __init__(self, a=67, b=59, wheel_diameter=65, wheel_init_dir=[1, 1, 1, 1], wheel_init_map=[1,2,3,4]):
+    def __init__(self, a=67, b=59, wheel_diameter=65, wheel_init_dir=[1, 1, 1, 1], wheel_init_map=[1,3,4,2]):
         self.a = a
         self.b = b
         self.wheel_diameter = wheel_diameter

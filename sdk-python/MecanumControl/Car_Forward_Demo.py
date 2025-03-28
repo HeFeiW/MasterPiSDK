@@ -23,7 +23,7 @@ Tips:
 ----------------------------------------------------------
 ''')
 
-chassis = mecanum.MecanumChassis(wheel_init_dir=[1, 1, 1, 1], wheel_init_map=[2, 4, 1, 3])
+chassis = mecanum.MecanumChassis(wheel_init_dir=[1, 1, 1, 1], wheel_init_map=[1, 3, 4, 2])
 # 1 - 3
 # 2 - 1
 # 3 - 4

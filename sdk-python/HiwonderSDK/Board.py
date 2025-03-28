@@ -21,7 +21,7 @@ __SERVO_ADDR_CMD  = 40
 
 __motor_speed = [0, 0, 0, 0]
 __motor_init_dir = [1, 1, 1, 1]
-__motor_init_map = [1, 2, 3, 4]
+__motor_init_map = [1, 3, 4, 2]
 __servo_angle = [0, 0, 0, 0, 0, 0]
 __servo_pulse = [0, 0, 0, 0, 0, 0]
 __i2c = 7

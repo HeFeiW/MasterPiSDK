@@ -162,9 +162,9 @@ th.setDaemon(True)
 th.start()
 
 roi = [ # [ROI, weight]
-        (240, 280,  0, 640, 0.1), 
-        (340, 380,  0, 640, 0.3), 
-        (430, 460,  0, 640, 0.6)
+        (200, 250,  0, 640, 0.1), 
+        (250, 300,  0, 640, 0.1), 
+        (300, 480,  0, 640, 0.8)
        ]
 
 roi_h1 = roi[0][0]
@@ -198,23 +198,26 @@ def run(img):
         roi_h = roi_h_list[n]
         n += 1       
         blobs = frame_gb[r[0]:r[1], r[2]:r[3]]
-        frame_lab = cv2.cvtColor(blobs, cv2.COLOR_BGR2LAB)  # 将图像转换到LAB空间
+        cv2.imshow('blobs', blobs)  # 显示二值化结果
+        # frame_lab = cv2.cvtColor(blobs, cv2.COLOR_BGR2LAB)  # 将图像转换到LAB空间
+        # cv2.imshow('lab', frame_lab)  # 显示二值化结果
         area_max = 0
         areaMaxContour = 0
         for i in lab_data:
             if i in __target_color:
                 detect_color = i
-                frame_mask = cv2.inRange(frame_lab,
+                frame_mask = cv2.inRange(blobs,
                                          (lab_data[i]['min'][0],
                                           lab_data[i]['min'][1],
                                           lab_data[i]['min'][2]),
                                          (lab_data[i]['max'][0],
                                           lab_data[i]['max'][1],
                                           lab_data[i]['max'][2]))  #对原图像和掩模进行位运算
-                eroded = cv2.erode(frame_mask, cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3)))  #腐蚀
-                dilated = cv2.dilate(eroded, cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))) #膨胀
-
-        cnts = cv2.findContours(dilated , cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_TC89_L1)[-2]#找出所有轮廓
+                # eroded = cv2.erode(frame_mask, cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3)))  #腐蚀
+                # dilated = cv2.dilate(eroded, cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))) #膨胀
+                dilated = frame_mask
+                cv2.imshow('mask', frame_mask)  # 显示二值化结果
+        cnts = cv2.findContours(frame_mask , cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_TC89_L1)[-2]#找出所有轮廓
         cnt_large, area = getAreaMaxContour(cnts)#找到最大面积的轮廓
         if cnt_large is not None:#如果轮廓不为空
             rect = cv2.minAreaRect(cnt_large)#最小外接矩形
@@ -265,7 +268,7 @@ if __name__ == '__main__':
     start()
     signal.signal(signal.SIGINT, Stop)
     cap = cv2.VideoCapture(0)
-    __target_color = ('green',)
+    __target_color = ('black',)
     while __isRunning:
         ret,img = cap.read()
         if ret:
