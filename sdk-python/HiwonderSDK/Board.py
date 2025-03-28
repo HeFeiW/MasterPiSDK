@@ -4,7 +4,8 @@ import sys
 sys.path.append('/home/HwHiAiUser/MasterPi/')
 import time
 import yaml_handle
-# import RPi.GPIO as GPIO
+import OPi.GPIO as GPIO
+from HiwonderSDK.ai_pro_pin_map import _BOARD
 from smbus2 import SMBus, i2c_msg
 # from rpi_ws281x import PixelStrip
 # from rpi_ws281x import Color as PixelColor
@@ -27,8 +28,8 @@ __servo_pulse = [0, 0, 0, 0, 0, 0]
 __i2c = 7
 __i2c_addr = 0x7A
 
-# GPIO.setwarnings(False)
-# GPIO.setmode(GPIO.BOARD)
+GPIO.setwarnings(False)
+GPIO.setmode(_BOARD)
 
 # __RGB_COUNT = 2
 # __RGB_PIN = 12
@@ -206,10 +207,19 @@ def getBattery():
            
     return ret
 
-# def setBuzzer(new_state):
-#     GPIO.setup(31, GPIO.OUT)
-#     GPIO.output(31, new_state)
-
+def setBuzzer(new_state):
+    GPIO.output(31, new_state)
+# def setBuzzer(sec,freq):
+#     # 设置GPIO为PWM输出模式
+#     buzzer_pin = 31  # 蜂鸣器引脚
+#     pwm = GPIO.PWM(buzzer_pin, freq,50)  # 创建PWM实例，设置频率
+#     # 启动PWM，占空比设为50%
+#     pwm.start()
+#     # 延时指定的秒数
+#     time.sleep(sec)
+#     # 停止PWM输出
+#     pwm.stop()
+#     GPIO.output(buzzer_pin, GPIO.LOW)
 # def setBusServoID(oldid, newid):
 #     """
 #     配置舵机id号, 出厂默认为1

@@ -5,10 +5,7 @@ import HiwonderSDK.mecanum as mecanum
 import signal
 import time
 chassis = mecanum.MecanumChassis(wheel_init_dir=[1, 1, 1, 1], wheel_init_map=[1, 3, 4, 2])
-# 1 - 3
-# 2 - 1
-# 3 - 4
-# 4 - 2
+
 
 start = True
 #关闭前处理
@@ -22,8 +19,7 @@ def Stop(signum, frame):
 
 signal.signal(signal.SIGINT, Stop)
 
-
-        
+   
 
 def MotorStop():
     Board.setMotor(1, 0) 
@@ -31,7 +27,7 @@ def MotorStop():
     Board.setMotor(3, 0)
     Board.setMotor(4, 0)
 
-def spinn(angular_velocity,sec):
+def spin(angular_velocity,sec):
     chassis.set_velocity(0,0,angular_velocity)
     time.sleep(sec)
     chassis.set_velocity(0,0,0)  # 关闭所有电机
@@ -42,4 +38,3 @@ def backwards(velocity,sec):
     time.sleep(sec)    
     chassis.set_velocity(0,0,0)  # 关闭所有电机
     print('已关闭')
-    

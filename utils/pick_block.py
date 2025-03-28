@@ -119,6 +119,29 @@ def MotorStop():
     Board.setMotor(3, 0)
     Board.setMotor(4, 0)
 cv2
+def turn_light_switch():
+    print("开始模拟开关灯...")
+    
+    # 初始化位置
+    initMove()
+    time.sleep(1)
+    
+    # 张开爪子
+    
+    # 然后向左侧移动 (增加y值)
+    AK.setPitchRangeMoving((-16, 3, 19), 0, -90, 90, 500)
+    time.sleep(1.5)
+    
+
+   #复原
+    AK.setPitchRangeMoving((0, 8, 10), -90, -90, 0, 500)
+    time.sleep(1)
+    MotorStop() # whf added according to visual patrol
+    
+
+    
+    print("开关灯动作完成！")
+
 def move_arm():
     global rect
     global _stop
