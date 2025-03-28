@@ -43,7 +43,7 @@ signal.signal(signal.SIGINT, Stop)
 
 if __name__ == '__main__':
     while start:
-        chassis.set_velocity(50,90,0)
+        chassis.set_velocity(0,0,100)
         time.sleep(1)
         
     chassis.set_velocity(0,0,0)  # 关闭所有电机

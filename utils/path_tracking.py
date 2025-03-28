@@ -15,16 +15,14 @@ from ArmIK.ArmMoveIK import *
 import HiwonderSDK.Misc as Misc
 import HiwonderSDK.Board as Board
 from HiwonderSDK.PID import PID
+from math_tools import least_squares_fit
 
 AK = ArmIK()
 pitch_pid = PID(P=0.28, I=0.16, D=0.18)
-global horizontal_detected
+reach_the_end = False
 horizontal_detected = False
-global vertical_detected
 vertical_detected = False
-global color_list_index
 color_list_index = 0
-global color_list
 color_list = [('red',), ('black',)]
 
 range_rgb = {
@@ -68,7 +66,8 @@ def reset():
     global line_centerx
     global __target_color
     global horizontal_detected
-    
+    global reach_the_end
+    reach_the_end = False
     line_centerx = -1
     horizontal_detected = False
     __target_color = ()
@@ -124,7 +123,7 @@ def getAreaMaxContour(contours):
         contour_area_temp = math.fabs(cv2.contourArea(c))  # 计算轮廓面积
         if contour_area_temp > contour_area_max:
             contour_area_max = contour_area_temp
-            if contour_area_temp >= 5:  # 只有在面积大于300时，最大面积的轮廓才是有效的，以过滤干扰
+            if contour_area_temp >= 20:  # 只有在面积大于300时，最大面积的轮廓才是有效的，以过滤干扰
                 area_max_contour = c
 
     return area_max_contour, contour_area_max  # 返回最大的轮廓
@@ -133,11 +132,11 @@ img_centerx = 320
 def move():
     global line_centerx
     global horizontal_detected
-
+    global reach_the_end
     i = 0
     while True:
         if __isRunning:
-            if line_centerx != -1 and not horizontal_detected:
+            if line_centerx != -1 and not horizontal_detected and not reach_the_end:
                 
                 num = (line_centerx - img_centerx)
                 if abs(num) <= 5:  # 偏差比较小，不进行处理
@@ -166,27 +165,23 @@ th.setDaemon(True)
 th.start()
 
 roi = [ # [ROI, weight]
-        (200, 250,  0, 640, 0.1), 
-        (250, 300,  0, 640, 0.1), 
-        (300, 480,  0, 640, 0.8)
-       ]
+    (i *36, (i + 1) * 36, 0, 640, 0.2*i/9) for i in range(10)
+]
+roi_h_list = [roi[i][1] - roi[i][0] for i in range(10)]
 
-roi_h1 = roi[0][0]
-roi_h2 = roi[1][0] - roi[0][0]
-roi_h3 = roi[2][0] - roi[1][0]
-
-roi_h_list = [roi_h1, roi_h2, roi_h3]
 
 size = (640, 480)
 def run(img):
     global line_centerx
     global __target_color
     global horizontal_detected
+    global reach_the_end
     global color_list_index
     color_changed = False
     horizontal_detected = False  # Reset at the beginning of each detection
     img_copy = img.copy()
     img_h, img_w = img.shape[:2]
+    slope = None
     
     if not __isRunning or __target_color == ():
         return img
@@ -196,16 +191,16 @@ def run(img):
     centroid_x_sum = 0
     weight_sum = 0
     center_ = []
+    center_points = []  # 新增的列表，用于存储每一份的中心点
     n = 0
 
-    #将图像分割成上中下三个部分，这样处理速度会更快，更精确
+    # 将图像分割成10个部分
+    horizontal_detected_record = False
     for r in roi:
         roi_h = roi_h_list[n]
         n += 1       
         blobs = frame_gb[r[0]:r[1], r[2]:r[3]]
-        cv2.imshow('blobs', blobs)  # 显示二值化结果
-        # frame_lab = cv2.cvtColor(blobs, cv2.COLOR_BGR2LAB)  # 将图像转换到LAB空间
-        # cv2.imshow('lab', frame_lab)  # 显示二值化结果
+        # cv2.imshow('blobs', blobs)  # 显示二值化结果
         area_max = 0
         areaMaxContour = 0
         for i in lab_data:
@@ -218,47 +213,62 @@ def run(img):
                                          (lab_data[i]['max'][0],
                                           lab_data[i]['max'][1],
                                           lab_data[i]['max'][2]))  #对原图像和掩模进行位运算
-                # eroded = cv2.erode(frame_mask, cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3)))  #腐蚀
-                # dilated = cv2.dilate(eroded, cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))) #膨胀
                 dilated = frame_mask
-                cv2.imshow('mask', frame_mask)  # 显示二值化结果
+                # cv2.imshow('mask', frame_mask)  # 显示二值化结果
         cnts = cv2.findContours(frame_mask , cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_TC89_L1)[-2]#找出所有轮廓
         cnt_large, area = getAreaMaxContour(cnts)#找到最大面积的轮廓
+        
         if cnt_large is not None:#如果轮廓不为空
-            rect = cv2.minAreaRect(cnt_large)#最小外接矩形
-            box = np.int0(cv2.boxPoints(rect))#最小外接矩形的四个顶点
-            angle = rect[2]#矩形的倾斜角度
-            if angle < -45:
-                angle += 90
-            # Check if line is horizontal (within ±10° of 0°)
-            # 水平线角度接近0度
-            horizontal_detected = abs(angle) < 10
-            print("angle :" ,angle)
-            for i in range(4):
-                box[i, 1] = box[i, 1] + (n - 1)*roi_h + roi[0][0]
-                box[i, 1] = int(Misc.map(box[i, 1], 0, size[1], 0, img_h))
-            for i in range(4):                
-                box[i, 0] = int(Misc.map(box[i, 0], 0, size[0], 0, img_w))
+                
+                rect = cv2.minAreaRect(cnt_large)#最小外接矩形
+                box = np.int0(cv2.boxPoints(rect))#最小外接矩形的四个顶点
+                # angle = rect[2]#矩形的倾斜角度
+                # if angle < -45:
+                #     angle += 90
+                # horizontal_detected = abs(angle) < 10
+                # print("angle :" ,angle)
+                for i in range(4):
+                    box[i, 1] = box[i, 1] + (n - 1)*roi_h + roi[0][0]
+                    box[i, 1] = int(Misc.map(box[i, 1], 0, size[1], 0, img_h))
+                for i in range(4):                
+                    box[i, 0] = int(Misc.map(box[i, 0], 0, size[0], 0, img_w))
 
-            cv2.drawContours(img, [box], -1, (0,0,255,255), 2)#画出四个点组成的矩形
-        
-            #获取矩形的对角点
-            pt1_x, pt1_y = box[0, 0], box[0, 1]
-            pt3_x, pt3_y = box[2, 0], box[2, 1]            
-            center_x, center_y = (pt1_x + pt3_x) / 2, (pt1_y + pt3_y) / 2#中心点       
-            cv2.circle(img, (int(center_x), int(center_y)), 5, (0,0,255), -1)#画出中心点         
-            center_.append([center_x, center_y])                        
-            #按权重不同对上中下三个中心点进行求和
-            centroid_x_sum += center_x * r[4]
-            weight_sum += r[4]
-    if horizontal_detected:
+                cv2.drawContours(img, [box], -1, (0,0,255,255), 2)#画出四个点组成的矩形
+            
+                #获取矩形的对角点
+                pt1_x, pt1_y = box[0, 0], box[0, 1]
+                pt3_x, pt3_y = box[2, 0], box[2, 1]
+                center_x, center_y = (pt1_x + pt3_x) / 2, (pt1_y + pt3_y) / 2#中心点       
+                if r[0]>120 and pt3_x - pt1_x > 150 and center_x > 220 and center_x < 420:
+                    print(box)
+                    print(f'pt3_x - pt1_x:{pt3_x - pt1_x}')
+                    horizontal_detected_record = True        
+                cv2.circle(img, (int(center_x), int(center_y)), 5, (0,0,255), -1)#画出中心点         
+                center_.append([center_x, center_y])                        
+                center_points.append((center_x, center_y))  # 将中心点添加到列表中
+                centroid_x_sum += center_x * r[4]
+                weight_sum += r[4]
+    if not horizontal_detected_record:
+        horizontal_detected = False
+    else:
+        horizontal_detected = True
+    print(f'center_points:{center_points}')
+    if len(center_points) > 5:
+        slope,r_value = least_squares_fit(center_points)
+        print(f'slope:{slope},r_value:{r_value}')
+    else:
+        reach_the_end = True
+    if horizontal_detected or reach_the_end:
         line_centerx = -1  # Stop motors
-        cv2.putText(img, "STOP", (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
-        horizontal_detected = False  # Reset horizontal detection
-        
-        
+        print('----------STOP-------------------')
+        cv2.putText(img, "STOP", (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)   
     elif weight_sum != 0:
         line_centerx = int(centroid_x_sum / weight_sum)
+        print(f'line_centerx:{line_centerx}')
+        ratio = 0.0
+        if slope is not None:
+            line_centerx =(line_centerx-320)*(1-slope)*ratio + (line_centerx-320)*(1-ratio)+320
+        print(f'line_centerx_correct:{line_centerx}')
     else:
         line_centerx = -1
         color_changed = False  # Reset color change flag
@@ -272,16 +282,21 @@ def Stop(signum, frame):
     print('关闭中...')
     MotorStop()  # 关闭所有电机
 
-def path_tracking(color):    
+def path_tracking(color): 
+    global __target_color  
+    global __isRunning 
+    global horizontal_detected
+    global reach_the_end
     init()
     start()
     signal.signal(signal.SIGINT, Stop)
     cap = cv2.VideoCapture(0)
     __target_color = color
-    while __isRunning:
+    while __isRunning and (not horizontal_detected) and (not reach_the_end):
         ret,img = cap.read()
         if ret:
             frame = img.copy()
+            frame[int(480 * 3 / 4):, :] = np.random.randint(0, 256, (int(480 / 4), 640, 3), dtype=np.uint8)
             Frame = run(frame)  
             frame_resize = cv2.resize(Frame, (320, 240))
             cv2.imshow('frame', frame_resize)
@@ -291,3 +306,4 @@ def path_tracking(color):
         else:
             time.sleep(0.01)
     cv2.destroyAllWindows()
+    return __isRunning, horizontal_detected, reach_the_end
