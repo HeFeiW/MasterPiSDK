@@ -29,15 +29,15 @@ def spin(angular_velocity,sec):
     chassis.set_velocity(0,0,angular_velocity)
     time.sleep(sec)
     chassis.set_velocity(0,0,0)  # 关闭所有电机
-    print('已关闭')
+    print('spin已关闭')
     return True
 def backwards(velocity,sec):
     chassis.set_velocity(-velocity,90,0)
     time.sleep(sec)    
     chassis.set_velocity(0,0,0)  # 关闭所有电机
-    print('已关闭')
+    print('backwards已关闭')
 def move(velocity,dir,sec):
-    chassis.set_velocity(-velocity,dir,0)
+    chassis.set_velocity(velocity,dir,0)
     time.sleep(sec)
     chassis.set_velocity(0,0,0)
     print(f'moved----velocity:{velocity} dir:{dir} time:{sec}s')

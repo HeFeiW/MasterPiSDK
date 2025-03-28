@@ -11,8 +11,11 @@ import numpy as np
 import cv2
 import sys
 sys.path.append("/root/ACLLite/python")  # 添加到文件开头
+sys.path.append('/root/thuei-1/sdk-python/')
 import time 
-
+import yaml_handle
+import torch
+import torch.nn as nn
 from acllite_resource import AclLiteResource
 from acllite_model import AclLiteModel
 from acllite_imageproc import AclLiteImageProc
@@ -144,20 +147,45 @@ def find_camera_index():
 def preprocess_image(img):
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     
-    # 自适应二值化，适应不同光照
-    binary = cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
-                                   cv2.THRESH_BINARY_INV, 11, 2)
+
     
     # 形态学操作，去除小噪声
     kernel = np.ones((3, 3), np.uint8)
-    binary = cv2.morphologyEx(binary, cv2.MORPH_CLOSE, kernel)
+    binary = cv2.morphologyEx(gray, cv2.MORPH_CLOSE, kernel)
     cv2.imshow('binary', binary)
+    return binary
+
+
+
+class Net(nn.Module):
+    def __init__(self):
+        super(Net, self).__init__()
+        self.conv1 = nn.Conv2d(1, 32, kernel_size=3, padding=1)
+        self.conv2 = nn.Conv2d(32, 64, kernel_size=3, padding=1)
+        self.conv3 = nn.Conv2d(64, 128, kernel_size=3, padding=1)
+        self.fc1 = nn.Linear(128 * 3 * 3, 256)  # 根据实际形状调整
+        self.fc2 = nn.Linear(256, 10)
+
+    def forward(self, x):
+        x = torch.relu(torch.max_pool2d(self.conv1(x), 2))
+        x = torch.relu(torch.max_pool2d(self.conv2(x), 2))
+        x = torch.relu(torch.max_pool2d(self.conv3(x), 2))
+        x = x.view(x.size(0), -1)
+        x = torch.relu(self.fc1(x))
+        x = self.fc2(x)
+        return x
+
+
+
 if __name__ == '__main__':
-    model_path = '/root/thuei-1/EdgeAndRobotics/Samples/YOLOV5USBCamera/model/number.om'
+
+    model_path = '/root/thuei-1/EdgeAndRobotics/Samples/YOLOV5USBCamera/model/numbers.om'
     model_width = 640
     model_height = 640
     model = sampleYOLOV7(model_path, model_width, model_height)
     model.init_resource()
+
+    lab_data = yaml_handle.get_yaml_data(yaml_handle.lab_file_path)
 
     # camera_index = find_camera_index()
     cap = cv2.VideoCapture("/dev/video0")
@@ -166,19 +194,40 @@ if __name__ == '__main__':
     # while __isRunning:
         ret,frame = cap.read()
         if ret:
-            processed_frame = preprocess_image(frame)
-
-    
-            contours, _ = cv2.findContours(processed_frame, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+            frame_resize = cv2.resize(frame, (640, 480), interpolation=cv2.INTER_NEAREST)
+            frame_gb = cv2.GaussianBlur(frame_resize, (3, 3), 3)  
+            frame_mask = cv2.inRange(frame_gb,
+                                             (lab_data['blue']['min'][0],
+                                              lab_data['blue']['min'][1],
+                                              lab_data['blue']['min'][2]),
+                                             (lab_data['blue']['max'][0],
+                                              lab_data['blue']['max'][1],
+                                              lab_data['blue']['max'][2]))  #对原图像和掩模进行位运算
+            opened = cv2.morphologyEx(frame_mask, cv2.MORPH_OPEN, np.ones((3, 3),np.uint8))  #开运算
+            closed = cv2.morphologyEx(opened, cv2.MORPH_CLOSE, np.ones((3, 3),np.uint8)) #闭运算
+            closed[:, 0:100] = 0
+            contours = cv2.findContours(closed, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)[-2]  #找出轮廓
             print(contours)
             
             for cnt in contours:
                 x, y, w, h = cv2.boundingRect(cnt)
-                if w * h > 50:
-                    roi = processed_frame[y:y+h, x:x+w]
-                    model.preprocess(roi)
-                    model.infer()
-                    model.postprocess( (x, y, w, h, frame))
+                if w * h > 300 and w * h < 10000:
+                    roi = frame[y:y+h, x:x+w]
+                    # model.preprocess(roi)
+                    # model.infer()
+                    # model.postprocess( (x, y, w, h, frame))
+                    model = Net()
+                    model.load_state_dict(torch.load("enhanced_mnist_model.pt"))
+                    model.eval()
+                    with torch.no_grad():
+                        roi = cv2.resize(roi, (28, 28))
+                        roi = cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY)
+                        roi = roi.reshape( 1, 28, 28)
+                        output = model(torch.from_numpy(roi).unsqueeze(0).float())
+                        prediction = torch.argmax(output).item()
+                    cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
+                    cv2.putText(frame, str(prediction), (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
+                    cv2.imshow('Number Detection', frame)
         
 
             cv2.imshow('Number Detection', frame)
@@ -192,3 +241,12 @@ if __name__ == '__main__':
 
     model.release_resource()
     
+
+
+# url = "https://github.com/pytorch/examples/raw/main/mnist/pretrained_model.pt"
+# torch.save(torch.hub.load_state_dict_from_url(url, map_location=torch.device('cpu')), "mnist_model.pt")
+
+# # 加载模型并识别图片
+# model = torch.load("mnist_model.pt") if torch.cuda.is_available() or torch.backends.mps.is_available() else torch.load("mnist_model.pt", map_location=torch.device('cpu'))
+# transform = transforms.Compose([transforms.Resize((28, 28)), transforms.ToTensor(), transforms.Normalize((0.1307,), (0.3081,))])
+# print(f"识别结果: {torch.argmax(model(transform(Image.open('digit.png').convert('L')).unsqueeze(0))).item()}")

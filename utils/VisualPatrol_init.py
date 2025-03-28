@@ -14,8 +14,10 @@ from ArmIK.ArmMoveIK import *
 import HiwonderSDK.Misc as Misc
 import HiwonderSDK.Board as Board
 from HiwonderSDK.PID import PID
+from base_motion import spin,backwards
 reach_the_end = False
 horizontal_detected = False
+find_own_way = False
 cap = None
 AK = ArmIK()
 pitch_pid = PID(P=0.28, I=0.16, D=0.18)
@@ -62,6 +64,8 @@ def reset():
     global __target_color
     global horizontal_detected
     global reach_the_end
+    global find_own_way
+    find_own_way = False
     horizontal_detected = False
     reach_the_end = False
     line_centerx = -1
@@ -182,6 +186,7 @@ def run(img):
     global horizontal_detected
     global reach_the_end
     global color_list_index
+    global find_own_way
     # horizontal_detected = False
     img_copy = img.copy()
     img_h, img_w = img.shape[:2]
@@ -199,7 +204,7 @@ def run(img):
     horizontal_detected_record = False
     #将图像分割成上中下三个部分，这样处理速度会更快，更精确
     for r in roi:
-        if r[0]==0 or r[0] == 200:
+        if not find_own_way and (r[0]==0 or r[0] == 200):
             continue
         roi_h = roi_h_list[n]
         n += 1       
@@ -241,7 +246,7 @@ def run(img):
             center_x, center_y = (pt1_x + pt3_x) / 2, (pt1_y + pt3_y) / 2#中心点 
             if pt3_x - pt1_x > 150 and center_x > 220 and center_x < 420:
                     print(box)
-                    print(f'pt3_x - pt1_x:{pt3_x - pt1_x}')
+                    # print(f'pt3_x - pt1_x:{pt3_x - pt1_x}')
                     horizontal_detected_record = True        
                       
             cv2.circle(img, (int(center_x), int(center_y)), 5, (0,0,255), -1)#画出中心点         
@@ -250,6 +255,22 @@ def run(img):
             centroid_x_sum += center_x * r[4]
             weight_sum += r[4]
             center_points.append((center_x, center_y))  # 将中心点添加到列表中
+    if find_own_way:
+        while len(center_points) < 2:
+            spin(-100,1)
+            time.sleep(1)
+        on_track = False
+        while not on_track:
+            for c_p in center_points:
+                if c_p[1]>200:
+                    on_track = True
+                    find_own_way = False
+                    break
+                else:
+                    backwards(-50,1)
+        return img
+            
+
     if not horizontal_detected_record:
         horizontal_detected = False
     else:
@@ -281,14 +302,16 @@ def Stop(signum, frame):
         # print('releasing cap at stop')
         cap.release()
 
-def path_tracking(color):
+def path_tracking(color,_find_own_way = False):
     global __target_color  
     global __isRunning 
     global horizontal_detected
     global reach_the_end
     global cap
+    global find_own_way
     init()
     start()
+    find_own_way = _find_own_way
     cap=cv2.VideoCapture("/dev/video0")
     signal.signal(signal.SIGINT, Stop)
     __target_color = color

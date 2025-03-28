@@ -38,9 +38,9 @@ if __name__ == '__main__':
     
 # #  #--------------导航去卧室----------------------------------
     
-    chassis.set_velocity(70,0,0)
-    time.sleep(0.8)
-    chassis.set_velocity(0,0,0)
+    # chassis.set_velocity(70,0,0)
+    # time.sleep(0.8)
+    # chassis.set_velocity(0,0,0)
 #     for i in range(3):
 #         _, horizontal_detected, reach_the_end = path_tracking('black')
 #         print(f'horizontal_detected:{horizontal_detected}')
@@ -53,34 +53,37 @@ if __name__ == '__main__':
 #     chassis.set_velocity(0,0,0)
 # #     chassis.set_velocity(50,90,0)
 # #     time.sleep(0.6)
-    for i in range(10):
-        _, horizontal_detected, reach_the_end = path_tracking('black')
-        print(f'horizontal_detected:{horizontal_detected}')
-        print(f'reach_the_end:{reach_the_end}')
-        if reach_the_end:
-            break
-    # chassis.set_velocity(100,180,0)
-    # time.sleep(1)
-#  #--------------卧室等待任务----------------------------------
-    print ("going left")
-    chassis.set_velocity(100,180,0)
-    time.sleep(0.5)
-    chassis.set_velocity(0,0,0)
-    print ("waiting")
-    time.sleep(9)
+# ----------------- entry --------------------------------
+#     _, horizontal_detected, reach_the_end = path_tracking('black',True)
+#     for i in range(10):
+#         _, horizontal_detected, reach_the_end = path_tracking('black')
+#         print(f'horizontal_detected:{horizontal_detected}')
+#         print(f'reach_the_end:{reach_the_end}')
+#         if reach_the_end:
+#             break
+#     # chassis.set_velocity(100,180,0)
+#     # time.sleep(1)
+# #  #--------------卧室等待任务----------------------------------
+#     print ("going left")
+#     chassis.set_velocity(100,180,0)
+#     time.sleep(0.8)
+#     chassis.set_velocity(0,0,0)
+#     print ("waiting")
+#     buzz(0.2)
+#     time.sleep(9)
 
-# # #-------------给奶奶跳舞任务------------------------------
-    print ("going right")
-    chassis.set_velocity(100,0,0)
-    time.sleep(4)
-    chassis.set_velocity(0,0,0)
-    time.sleep(2.3)
-    chassis.set_velocity(100,0,0)
-    dance()
+# # # #-------------给奶奶跳舞任务------------------------------
+#     print ("going right")
+#     chassis.set_velocity(100,0,0)
+#     time.sleep(2.5)
+#     chassis.set_velocity(0,0,0)
+#     buzz(0.2)
+#     dance()
 
-# # #-------------垃圾分类任务------------------------------
+# # # #-------------垃圾分类任务------------------------------
+    pick_block('blue',True)
     for i in range(10):
-        _, horizontal_detected, reach_the_end = path_tracking('black')
+        _, horizontal_detected, reach_the_end = path_tracking('black',_find_own_way = True)
         print(f'horizontal_detected:{horizontal_detected}')
         print(f'reach_the_end:{reach_the_end}')
         if horizontal_detected:
@@ -97,8 +100,25 @@ if __name__ == '__main__':
         print(f'reach_the_end:{reach_the_end}')
         if horizontal_detected:
             break
-    sort()
+    # sort()
     print('sorting')
-    
+# ---------------- 书房取书任务 ----------------------------------------
+    chassis.set_velocity(0,0,10)
+    time.sleep(1)
+    chassis.set_velocity(0,0,0)
+    _, horizontal_detected, reach_the_end = path_tracking('blue',_find_own_way = True)
+    for i in range(10):
+        _, horizontal_detected, reach_the_end = path_tracking('red')
+        print(f'horizontal_detected:{horizontal_detected}')
+        print(f'reach_the_end:{reach_the_end}')
+        if horizontal_detected:
+            break
+    chassis.set_velocity(0,0,20)
+    time.sleep(1)
+    chassis.set_velocity(0,0,0)
+    # piling()
+    print('piling')
+    spin(25,1)
+
 
     

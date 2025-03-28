@@ -1,6 +1,7 @@
 #!/usr/bin/python3
 # coding=utf8
 import sys
+import math
 sys.path.append('/root/thuei-1/sdk-python/')
 import cv2
 import time
@@ -13,6 +14,7 @@ import HiwonderSDK.Sonar as Sonar
 import HiwonderSDK.Board as Board
 from CameraCalibration.CalibrationConfig import *
 from HiwonderSDK.PID import PID
+from utils.base_motion import move
 import numpy as np
 if sys.version_info.major == 2:
     print('Please run this program with python3!')
@@ -34,6 +36,9 @@ temp_targ = (0,0,0)
 line_centerx = -1 # whf added according to visual patrol
 picked_up = False
 move_to = (0,0)
+__target_color = None
+__transform = False
+
 # 变量重置
 def reset():
     global _stop
@@ -48,6 +53,8 @@ def reset():
     global picked_up
     global lower_frame
     global move_to
+    global __transform
+    __transform = False
     line_centerx = -1
     count = 0
     _stop = False
@@ -156,6 +163,7 @@ def move_arm():
     global line_centerx
     global lower_frame
     global move_to
+    global __transform
     
     while True:
         if __isRunning:        
@@ -173,6 +181,14 @@ def move_arm():
                 print(f'success:{success}')
                 if success is False:
                     print("pick failed")
+                    if __transform:
+                        velocity = [temp_targ[0],temp_targ[1]-13,temp_targ[2]]
+                        dir = math.degrees(math.atan2(temp_targ[0],temp_targ[1]))
+                        if dir < 0:
+                            dir +=180
+                        vel = 3* math.sqrt(temp_targ[0]*temp_targ[0]+temp_targ[1]*temp_targ[1])
+                        print(f'dir:{dir},vel:{vel}')
+                        move(vel,dir,0.5)
                     start_pick_up = False
                     move_to = temp_targ
                     time.sleep(1)
@@ -298,7 +314,7 @@ def run_block(img):
                 closed[:, 0:100] = 0
                 contours = cv2.findContours(closed, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)[-2]  #找出轮廓
                 areaMaxContour, area_max = getAreaMaxContour(contours)  #找出最大轮廓
-                print("runing")
+                # print("runing")
                 if areaMaxContour is not None:
                     if area_max > max_area:#找最大面积
                         max_area = area_max
@@ -394,13 +410,15 @@ w_start = 200
 h_start = 200
 
 
-def pick_block(color):
+def pick_block(color,transform = False):
     init()
     start()
+    global __transform
     global __target_color
     global temp_targ
     global lower_frame
     global picked_up
+    __transform = transform
     __target_color = color
     cap = cv2.VideoCapture(0)
     while True:
@@ -412,8 +430,8 @@ def pick_block(color):
             img_h, img_w = frame.shape[:2]
             # 将图像的下1/4部分设置为黑色
             lower_frame = np.copy(frame[int(img_h * 3 / 4):, 230:450])
-            frame[int(img_h * 3 / 4):, 0:230] = np.random.randint(0, 256, (int(img_h / 4), 230, 3), dtype=np.uint8)
-            frame[int(img_h * 3 / 4):, 450:] = np.random.randint(0, 256, (int(img_h / 4), img_w-450, 3), dtype=np.uint8)
+            frame[int(img_h * 3 / 4):, 0:230] = [0,0,0]
+            frame[int(img_h * 3 / 4):, 450:] = [0,0,0]
             Frame = run_block(frame)
             # print(f"frame.shape():{frame.shape}")
             frame_resize = cv2.resize(Frame, (640, 480))
@@ -421,10 +439,10 @@ def pick_block(color):
             roi_rounded = tuple(int(round(value)) for value in roi)
             frame_roi = getMaskROI(frame_resize,roi_rounded,(640,480))
             
-            cv2.imshow('frame', frame)#temp
+            # cv2.imshow('frame', frame)#temp
             
-            cv2.imshow('lower', lower_frame)#temp
-            print(f'pickedup:{picked_up}')
+            # cv2.imshow('lower', lower_frame)#temp
+            # print(f'pickedup:{picked_up}')
             # 在frame上画出rect
             if rect is not None:
                 x_i,y_i = getCenter(rect, roi_rounded, (640,480), 3)
@@ -432,7 +450,7 @@ def pick_block(color):
                 temp_targ= (x,y-0.7*x,-1.5)
                 # 夹的距离有点靠前，向后挪1cm
                 # temp_targ[1]-=1
-                cv2.imwrite('/root/thuei-1/utils/img.jpg',frame)
+                # cv2.imwrite('/root/thuei-1/utils/img.jpg',frame)
                 box = cv2.boxPoints(rect)
                 box = np.int0(box)
                 cv2.drawContours(frame, [box], 0, (0, 255, 0), 2)
