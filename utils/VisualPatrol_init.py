@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!/usr/bin/python3lab_data
 # coding=utf8
 import sys
 sys.path.append('/root/thuei-1/sdk-python/')
@@ -60,13 +60,16 @@ line_centerx = -1
 def reset():
     global line_centerx
     global __target_color
-    
+    global horizontal_detected
+    global reach_the_end
+    horizontal_detected = False
+    reach_the_end = False
     line_centerx = -1
     __target_color = ()
     
 # app初始化调用
 def init():
-    print("VisualPatrol Init")
+    # print("VisualPatrol Init")
     load_config()
     initMove()
 
@@ -196,7 +199,7 @@ def run(img):
     horizontal_detected_record = False
     #将图像分割成上中下三个部分，这样处理速度会更快，更精确
     for r in roi:
-        if r[0]==0:
+        if r[0]==0 or r[0] == 200:
             continue
         roi_h = roi_h_list[n]
         n += 1       
@@ -217,7 +220,8 @@ def run(img):
                                           lab_data[i]['max'][2]))  #对原图像和掩模进行位运算
                 eroded = cv2.erode(frame_mask, cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3)))  #腐蚀
                 dilated = cv2.dilate(eroded, cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))) #膨胀
-
+                # cv2.imshow('frame_mask',frame_lab)
+                # cv2.imshow('frame_mask',frame_mask)
         cnts = cv2.findContours(dilated , cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_TC89_L1)[-2]#找出所有轮廓
         cnt_large, area = getAreaMaxContour(cnts)#找到最大面积的轮廓
         if cnt_large is not None:#如果轮廓不为空
@@ -274,7 +278,7 @@ def Stop(signum, frame):
     print('关闭中...')
     MotorStop()  # 关闭所有电机
     if cap is not None:
-        print('releasing cap at stop')
+        # print('releasing cap at stop')
         cap.release()
 
 def path_tracking(color):
@@ -288,6 +292,7 @@ def path_tracking(color):
     cap=cv2.VideoCapture("/dev/video0")
     signal.signal(signal.SIGINT, Stop)
     __target_color = color
+    print(f'{__target_color}')
     # while __isRunning and (not horizontal_detected) and (not reach_the_end):
     while __isRunning:
         ret,img = cap.read()
@@ -304,6 +309,7 @@ def path_tracking(color):
             time.sleep(0.01)
     cv2.destroyAllWindows()
     if cap is not None:
-        print('releasing cap at return')
+        # print('releasing cap at return')
         cap.release()
+    stop()
     return __isRunning, horizontal_detected, reach_the_end

@@ -20,7 +20,7 @@ from acllite_image import AclLiteImage
 from acllite_logger import log_error, log_info
 
 labels = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"]
-
+# labels = ["kettle", "mop", "dishcloth"]
 class sampleYOLOV7(object):
     '''load the model, and do preprocess, infer, postprocess'''
     def __init__(self, model_path, model_width, model_height):
@@ -40,7 +40,6 @@ class sampleYOLOV7(object):
         # resize frame, keep original image
         self.src_image = frame
         self.resized_image = cv2.resize(frame, (self.model_width, self.model_height))
-        self.resized_image = self.resized_image.transpose(2,0,1)[np.newaxis,:]
 
     def infer(self):
         # infer frame
@@ -77,9 +76,11 @@ class sampleYOLOV7(object):
             order = order[inds + 1]
             
         return keep
-    def postprocess(self):
+    def postprocess(self,  tuple):
+        x, y, w, h, frame = tuple
+        print(x, y, w, h)
         predictions = self.result[0]
-        h, w, _ = self.src_image.shape 
+        print(predictions)
         scale_x = w / self.model_width
         scale_y = h / self.model_height
 
@@ -89,35 +90,40 @@ class sampleYOLOV7(object):
         class_scores = predictions[:, 5:]
         class_ids = np.argmax(class_scores, axis=1)
         
-        # 修改: 只保留每个类别置信度最高的框
-        keep_boxes = []
-        for cls in np.unique(class_ids):
-            cls_mask = (class_ids == cls)
-            cls_boxes = predictions[cls_mask]
-            cls_conf = confidences[cls_mask]
+        max_conf_idx = np.argmax(confidences)
+        max_conf_class = class_ids[max_conf_idx]
+        cv2.rectangle(frame, (x,y), (x+w,y+h), (0,255,0), 2)
+        cv2.putText(frame, labels[max_conf_class], (x, max(y-20,10)), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0,255,0), 2)
+        cv2.imshow('Detection', frame)
+        # # 修改: 只保留每个类别置信度最高的框
+        # keep_boxes = []
+        # for cls in np.unique(class_ids):
+        #     cls_mask = (class_ids == cls)
+        #     cls_boxes = predictions[cls_mask]
+        #     cls_conf = confidences[cls_mask]
             
-            # 只保留置信度最高的一个框
-            if len(cls_conf) > 0:
-                highest_conf_idx = np.argmax(cls_conf)
-                cls_idx = np.where(cls_mask)[0][highest_conf_idx]
-                keep_boxes.append(cls_idx)
+        #     # 只保留置信度最高的一个框
+        #     if len(cls_conf) > 0:
+        #         highest_conf_idx = np.argmax(cls_conf)
+        #         cls_idx = np.where(cls_mask)[0][highest_conf_idx]
+        #         keep_boxes.append(cls_idx)
         
-        # 过滤低置信度
-        keep_boxes = np.array(keep_boxes)
-        final_mask = confidences[keep_boxes] > 0.70
-        boxes = predictions[keep_boxes, :4][final_mask]
-        confidences = confidences[keep_boxes][final_mask]
-        class_ids = class_ids[keep_boxes][final_mask]
+        # # 过滤低置信度
+        # keep_boxes = np.array(keep_boxes)
+        # final_mask = confidences[keep_boxes] > 0.70
+        # boxes = predictions[keep_boxes, :4][final_mask]
+        # confidences = confidences[keep_boxes][final_mask]
+        # class_ids = class_ids[keep_boxes][final_mask]
 
         # 绘制检测结果
-        for box, conf, cls_id in zip(boxes, confidences, class_ids):
-            x1, y1, x2, y2 = (box * [scale_x, scale_y, scale_x, scale_y]).astype(int)
-            label = f"{labels[cls_id]} {conf:.2f}"
-            cv2.rectangle(self.src_image, (x1,y1), (x2,y2), (0,255,0), 2)
-            cv2.putText(self.src_image, label, (x1, max(y1-20,10)), 
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0,255,0), 2)
+        # for box, conf, cls_id in zip(boxes, confidences, class_ids):
+        #     x1, y1, x2, y2 = (box * [scale_x, scale_y, scale_x, scale_y]).astype(int)
+        #     label = f"{labels[cls_id]} {conf:.2f}"
+        #     cv2.rectangle(self.src_image, (x1,y1), (x2,y2), (0,255,0), 2)
+        #     cv2.putText(self.src_image, label, (x1, max(y1-20,10)), 
+        #                 cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0,255,0), 2)
         
-        cv2.imshow('Detection', self.src_image)
+        # cv2.imshow('Detection', self.src_image)
     def release_resource(self):
         # release resource includes acl resource, data set and unload model
         del self._resource
@@ -135,33 +141,54 @@ def find_camera_index():
     # If no camera is found
     raise ValueError("No camera found.")
 
-
+def preprocess_image(img):
+    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    
+    # 自适应二值化，适应不同光照
+    binary = cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
+                                   cv2.THRESH_BINARY_INV, 11, 2)
+    
+    # 形态学操作，去除小噪声
+    kernel = np.ones((3, 3), np.uint8)
+    binary = cv2.morphologyEx(binary, cv2.MORPH_CLOSE, kernel)
+    cv2.imshow('binary', binary)
 if __name__ == '__main__':
-    model_path = '/root/thuei-1/EdgeAndRobotics/Samples/YOLOV5USBCamera/model/numbers.om'
+    model_path = '/root/thuei-1/EdgeAndRobotics/Samples/YOLOV5USBCamera/model/number.om'
     model_width = 640
     model_height = 640
     model = sampleYOLOV7(model_path, model_width, model_height)
     model.init_resource()
 
     # camera_index = find_camera_index()
-    cap = cv2.VideoCapture(0)
-    cv2.namedWindow('out', cv2.WINDOW_NORMAL)
+    cap = cv2.VideoCapture("/dev/video0")
+    # cv2.namedWindow('out', cv2.WINDOW_NORMAL)
     while True:
-        ret, frame = cap.read()
-        if not ret:  
-            print("Can't receive frame (stream end?). Exiting ...")  
-            break  
-        # print(f"图像形状: {frame.shape}") 
-        # frame = cv2.resize(frame, (640, 640)) 
-        # print(f"图像形状: {frame.shape}") 
-        print(model.model_height,model.model_width, frame.shape, model.model_path)
-        model.preprocess(frame)
-        model.infer()
-        model.postprocess()
-        # cv2.imshow('Frame', frame)
-        if cv2.waitKey(1) & 0xFF == ord('q'):  
-            break  
-    cap.release()  
-    cv2.destroyAllWindows()
+    # while __isRunning:
+        ret,frame = cap.read()
+        if ret:
+            processed_frame = preprocess_image(frame)
+
     
+            contours, _ = cv2.findContours(processed_frame, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+            print(contours)
+            
+            for cnt in contours:
+                x, y, w, h = cv2.boundingRect(cnt)
+                if w * h > 50:
+                    roi = processed_frame[y:y+h, x:x+w]
+                    model.preprocess(roi)
+                    model.infer()
+                    model.postprocess( (x, y, w, h, frame))
+        
+
+            cv2.imshow('Number Detection', frame)
+            key = cv2.waitKey(1)
+            if key == 27:
+                break
+        else:
+            time.sleep(0.01)
+            print("no frame")    
+    cv2.destroyAllWindows()
+
     model.release_resource()
+    

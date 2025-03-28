@@ -74,10 +74,6 @@ def reset():
     __target_color = ()
     
 # app初始化调用
-def init():
-    print("VisualPatrol Init")
-    load_config()
-    initMove()
 
 __isRunning = False
 # app开始玩法调用

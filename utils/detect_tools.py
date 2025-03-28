@@ -45,10 +45,10 @@ class sampleYOLOV7(object):
         4. Transpose to match model input requirements
         """
         # Create AclLiteImage from frame
-        src_image = AclLiteImage(frame, frame.shape[0], frame.shape[1], 
-                                AclLiteImage.PIXEL_FORMAT_BGR_888)
+        
         # Resize image to model input dimensions
-        self.resized_image = self._dvpp.resize(src_image, self.model_width, self.model_height)
+        frame = AclLiteImage(frame)  # 添加此行
+        self.resized_image = self._dvpp.resize(frame, self.model_width, self.model_height)
         return self.resized_image
 
     def infer(self):
@@ -169,7 +169,7 @@ def find_camera_index():
 
 
 if __name__ == '__main__':
-    model_path = '/root/thuei-1/EdgeAndRobotics/Samples/YOLOV5USBCamera/model/numbers.om'
+    model_path = '/root/thuei-1/EdgeAndRobotics/Samples/YOLOV5USBCamera/model/best.om'
     model_width = 640
     model_height = 640
     model = sampleYOLOV7(model_path, model_width, model_height)

@@ -13,11 +13,12 @@ import HiwonderSDK.Sonar as Sonar
 import HiwonderSDK.Board as Board
 from CameraCalibration.CalibrationConfig import *
 from HiwonderSDK.PID import PID
+from utils.base_motion import *
 import numpy as np
 if sys.version_info.major == 2:
     print('Please run this program with python3!')
     sys.exit(0)
-
+cap = None
 AK = ArmIK()
 HWSONAR = Sonar.Sonar() #超声波传感器
 pitch_pid = PID(P=0.28, I=0.16, D=0.18) #Pid要调参啊
@@ -26,8 +27,8 @@ count = 0
 _stop = False
 color_list = []
 get_roi = False
-__isRunning = False
-detect_color = 'None'
+__isRunning = True
+detect_color = None
 start_pick_up = False
 start_count_t1 = True
 temp_targ = (0,0,0)
@@ -54,7 +55,7 @@ def reset():
     color_list = []
     get_roi = False
     __target_color = ()
-    detect_color = 'None'
+    detect_color = None
     start_pick_up = False
     start_count_t1 = True
     picked_up = False
@@ -85,10 +86,14 @@ def start():
 def stop():
     global _stop #_stop 是干什么用的？
     global __isRunning
+    global cap
     _stop = True
     __isRunning = False
     # set_rgb('None')
     MotorStop() # whf added according to visual patrol
+    if cap is not None:
+        print('releasing cap at stop')
+        cap.release()
     print("ColorSorting Stop")
 
 # app退出玩法调用
@@ -118,7 +123,7 @@ def MotorStop():
     Board.setMotor(2, 0)
     Board.setMotor(3, 0)
     Board.setMotor(4, 0)
-
+cv2
 def turn_light_switch():
     print("开始模拟开关灯...")
     
@@ -129,7 +134,7 @@ def turn_light_switch():
     # 张开爪子
     
     # 然后向左侧移动 (增加y值)
-    AK.setPitchRangeMoving((-15, 3, 19), 0, -90, 90, 500)
+    AK.setPitchRangeMoving((-16, 3, 19), 0, -90, 90, 500)
     time.sleep(1.5)
     
 
@@ -158,8 +163,11 @@ def move_arm():
     global move_to
     
     while True:
-        if __isRunning:        
-            # print(f"start_pick_up:{start_pick_up}")
+        if __isRunning:   
+            if start_pick_up:
+                print('start pick up')     
+            if detect_color is not None:
+                print(detect_color)
             if detect_color != 'None' and start_pick_up:  #如果检测到方块,开始夹取
                 
                 # set_rgb(detect_color) # 设置扩展板上的彩灯与检测到的颜色一样
@@ -186,7 +194,7 @@ def move_arm():
                 result = AK.setPitchRangeMoving((0, 8, 10), -90, -90, 0, 1500) #机械臂hold在default位置
                 print(f'im back')
                 check_picked_up(lower_frame)
-                detect_color = 'None'
+                detect_color = None
                 get_roi = False
                 start_pick_up = False
                 # set_rgb(detect_color)
@@ -198,6 +206,7 @@ def move_arm():
                 _stop = False
                 initMove()
             time.sleep(0.01)
+            return
             # start_pick_up = False
 #************************************************************
 # CV API
@@ -275,7 +284,8 @@ def run_block(img):
     
     frame_resize = cv2.resize(img_copy, size, interpolation=cv2.INTER_NEAREST)
     frame_gb = cv2.GaussianBlur(frame_resize, (3, 3), 3)     
-    frame_lab = cv2.cvtColor(frame_gb, cv2.COLOR_BGR2LAB)  # 将图像转换到LAB空间
+    # frame_lab = cv2.cvtColor(frame_gb, cv2.COLOR_BGR2LAB)  # 将图像转换到LAB空间
+    frame_lab = frame_gb
     color_area_max = None
     max_area = 0
     areaMaxContour_max = 0
@@ -298,7 +308,7 @@ def run_block(img):
                 closed[:, 0:100] = 0
                 contours = cv2.findContours(closed, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)[-2]  #找出轮廓
                 areaMaxContour, area_max = getAreaMaxContour(contours)  #找出最大轮廓
-                print("runing")
+                # print("runing")
                 if areaMaxContour is not None:
                     if area_max > max_area:#找最大面积
                         max_area = area_max
@@ -337,14 +347,14 @@ def run_block(img):
                             draw_color = range_rgb["blue"]
                     else:
                         start_pick_up = False
-                        detect_color = 'None'
+                        detect_color = None
                         draw_color = range_rgb["black"]
         else:
             if not start_pick_up:
                 draw_color = (0, 0, 0)
-                detect_color = "None"
-
-    cv2.putText(img, "Color: " + detect_color, (10, img.shape[0] - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.65, draw_color, 2)
+                detect_color = None
+    if detect_color is not None:
+        cv2.putText(img, "Color: " + detect_color, (10, img.shape[0] - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.65, draw_color, 2)
     return img
 def check_picked_up(lower_frame):
     global __target_color
@@ -392,28 +402,49 @@ draw_color = range_rgb["black"]
 length = 50
 w_start = 200
 h_start = 200
+color_move={'red':[1,1],'blue':[1,1],'green':[1,1]}
 
-
-def pick_block(color):
+def sort():
     init()
     start()
     global __target_color
     global temp_targ
     global lower_frame
     global picked_up
-    __target_color = color
-    cap = cv2.VideoCapture(0)
-    while True:
-        if picked_up:
-            return (True,())
+    global cap
+    __target_color = 'blue'
+    cap = cv2.VideoCapture("/dev/video0")
+    signal.signal(signal.SIGINT, Stop)
+    while __isRunning:
+        if picked_up and __target_color=='blue':
+            print(f'picked up color: {__target_color}')
+            move(50,180,color_move[__target_color][0])
+            move(50,90,color_move[__target_color][1])
+            place_block((0,16,0))
+            picked_up = False
+            __target_color = 'green'
+        elif picked_up and __target_color=='green':
+            print(f'picked up color: {__target_color}')
+            move(50,180,color_move[__target_color][0])
+            move(50,90,color_move[__target_color][1])
+            place_block((0,16,0))
+            picked_up = False
+            __target_color = 'red'
+        elif picked_up and __target_color=='red':
+            print(f'picked up color: {__target_color}')
+            move(50,180,color_move[__target_color][0])
+            move(50,90,color_move[__target_color][1])
+            place_block((0,16,0))
+            picked_up = False
+            return True
         ret,img = cap.read()
         if ret:
             frame = img.copy()
             img_h, img_w = frame.shape[:2]
             # 将图像的下1/4部分设置为黑色
             lower_frame = np.copy(frame[int(img_h * 3 / 4):, 230:450])
-            frame[int(img_h * 3 / 4):, 0:230] = np.random.randint(0, 256, (int(img_h / 4), 230, 3), dtype=np.uint8)
-            frame[int(img_h * 3 / 4):, 450:] = np.random.randint(0, 256, (int(img_h / 4), img_w-450, 3), dtype=np.uint8)
+            # frame[int(img_h * 3 / 4):, 0:230] = [0,0,0]
+            # frame[int(img_h * 3 / 4):, 450:] = [0,0,0]
             Frame = run_block(frame)
             # print(f"frame.shape():{frame.shape}")
             frame_resize = cv2.resize(Frame, (640, 480))
@@ -423,13 +454,13 @@ def pick_block(color):
             
             cv2.imshow('frame', frame)#temp
             
-            cv2.imshow('lower', lower_frame)#temp
-            print(f'pickedup:{picked_up}')
+            # cv2.imshow('lower', lower_frame)#temp
+            # print(f'pickedup:{picked_up}')
             # 在frame上画出rect
             if rect is not None:
                 x_i,y_i = getCenter(rect, roi_rounded, (640,480), 3)
                 x,y = convertCoordinate(x_i,y_i,(640,480))
-                temp_targ= (x,y-0.7*x,-1.5)
+                temp_targ= (x,y-0.5*x,-1.5)
                 # 夹的距离有点靠前，向后挪1cm
                 # temp_targ[1]-=1
                 cv2.imwrite('/root/thuei-1/utils/img.jpg',frame)
@@ -442,3 +473,32 @@ def pick_block(color):
         else:
             time.sleep(0.01)
     cv2.destroyAllWindows()
+    if cap is not None:
+        print('releasing cap at return')
+        cap.release()
+
+def place_block(place_targ):
+    for i in range(3):
+        result = AK.setPitchRangeMoving((place_targ[0],place_targ[1],place_targ[2]+8), -90, -135, -45) # 运行到对应颜色的坐标上方
+        if result == False:
+            print(f'pick_block failed{i}')
+        else:
+            unreachable = False
+            time.sleep(result[2]/1000) #如果可以到达指定位置，则获取运行时间
+        AK.setPitchRangeMoving(place_targ, -90,-135, -45, 500)  # 放置到检测到颜色对应的坐标
+        time.sleep(0.5)
+        if not __isRunning:
+            continue
+        Board.setPWMServoPulse(1, 1800, 500) # 张开爪子
+        time.sleep(0.5)
+        if not __isRunning:
+            continue
+        if not __isRunning:
+            continue
+        Board.setPWMServosPulse([1200, 4, 1,1500, 3,515, 4,2170,5,945]) # 机械臂进行复位
+        time.sleep(2)
+        return True
+    return False
+
+if __name__ == '__main__':
+    sort()

@@ -15,6 +15,8 @@ from utils.beep import buzz
 import signal
 import numpy as np
 from utils.base_motion import spin
+import HiwonderSDK.mecanum as mecanum
+from base_motion import *
 
 AK = ArmIK()
 
@@ -78,23 +80,30 @@ def dance():
     start()
     signal.signal(signal.SIGINT, stop)
     AK.setPitchRangeMoving((0,7,2), -90,-135, -45, 1500) 
+    
     buzz(0.2)
     time.sleep(0.5)
     AK.setPitchRangeMoving((0,16,6), 0,-45, 45, 1500)
     buzz(0.2)
+    chassis.set_velocity(0, 0, 0.5)
     time.sleep(0.5)
     AK.setPitchRangeMoving((0,0,26), 90,45, 135, 1500)
     buzz(0.2)
+    chassis.set_velocity(0, 0, 0.5)
     time.sleep(0.5)
     Board.setPWMServoPulse(1, 1800, 500)
     buzz(0.2)
+    chassis.set_velocity(0, 0, -0.5)
     time.sleep(0.5)
     Board.setPWMServoPulse(1, 1500, 500)
     buzz(0.2)
+    chassis.set_velocity(0, 0, -0.5)
     time.sleep(0.5)
     AK.setPitchRangeMoving((0,1,15), -90,-135, -45, 1500)
     spin(100,2)
-
-
+    chassis.set_velocity(0, 0, 0)
+    Board.setPWMServoPulse(1, 1500, 800)
+    AK.setPitchRangeMoving((0, 7, 11), -60, -90, 0, 1500)
+    
 
      

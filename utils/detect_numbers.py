@@ -117,6 +117,56 @@ def Stop(signum, frame):
     if cap is not None:
         print('releasing cap at stop')
         cap.release()
+import cv2
+from paddleocr import PaddleOCR
+import easyocr
+import cv2
+import numpy as np
+import torch
+import torchvision.transforms as transforms
+from PIL import Image
+
+import sys
+sys.path.append('/root/thuei-1/crnn.pytorch/models/')
+from crnn import CRNN
+# 加载预训练 CRNN 模型
+model_path = "/root/thuei-1/crnn.pytorch/data/crnn.pth"
+model = CRNN(32, 1, 37, 256)
+model.load_state_dict(torch.load(model_path, map_location=torch.device('cpu')))
+model.eval()
+
+def preprocess_image(img):
+    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    cv2.imshow('gray', gray)
+    # 自适应二值化，适应不同光照
+    binary = cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
+                                   cv2.THRESH_BINARY_INV, 11, 2)
+    
+    # 形态学操作，去除小噪声
+    kernel = np.ones((3, 3), np.uint8)
+    binary = cv2.morphologyEx(binary, cv2.MORPH_CLOSE, kernel)
+
+    return binary
+
+def recognize_number(roi):
+    transform = transforms.Compose([
+        transforms.Grayscale(),
+        transforms.Resize((32, 100)),
+        transforms.ToTensor(),
+        transforms.Normalize((0.5,), (0.5,))
+    ])
+    
+    roi_pil = Image.fromarray(roi)
+    roi_tensor = transform(roi_pil).unsqueeze(0)
+
+    with torch.no_grad():
+        preds = model(roi_tensor)
+        _, preds = preds.max(2)
+        preds = preds.transpose(1, 0).contiguous().view(-1)
+        
+    return ''.join([chr(pred + 48) for pred in preds])  # 将预测结果转换为数字
+
+
 
 def path_tracking(color):
     global __target_color  
@@ -127,47 +177,49 @@ def path_tracking(color):
     init()
     start()
     cap=cv2.VideoCapture("/dev/video0")
+
+
     signal.signal(signal.SIGINT, Stop)
     __target_color = color
+    print("start")
+    
+    ocr = PaddleOCR(use_angle_cls=True, lang="ch")  # 只识别英文和数字
     while __isRunning and (not horizontal_detected) and (not reach_the_end):
     # while __isRunning:
-        ret,img = cap.read()
+        ret,frame = cap.read()
         if ret:
-            frame = img.copy()
-            # frame[430:, :] = np.random.randint(0, 256, (50, 640, 3), dtype=np.uint8)
-            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            processed_frame = preprocess_image(frame)
+    
+            contours, _ = cv2.findContours(processed_frame, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+            
+            for cnt in contours:
+                x, y, w, h = cv2.boundingRect(cnt)
+                if w * h > 50:
+                    roi = processed_frame[y:y+h, x:x+w]
+                    result = ocr.ocr(roi, cls=True)
+        
+                    if result and result[0]:
+                        text = result[0][0][1][0]  # 取第一个识别结果的文本
+                        print(f"识别结果: {text}")
 
-            data = pytesseract.image_to_data(gray, output_type=pytesseract.Output.DICT)
-            for i in range(len(data['text'])):
-                if data['text'][i].isdigit():
-                    x, y, w, h = data['left'][i], data['top'][i], data['width'][i], data['height'][i]
-                    cv2.rectangle(frame, (x, y), (x+w, y+h), (0, 255, 0), 2) data['text'][i]
-                    print(f"数字 {data['text'][i]} 坐标: ({x}, {y}, {x+w}, {y+h})")
+                        cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
+                        cv2.putText(frame, text, (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 0, 0), 2)
 
-            cv2.imshow('frame', frame)
+            cv2.imshow('Number Detection', frame)
             key = cv2.waitKey(1)
             if key == 27:
                 break
         else:
             time.sleep(0.01)
+            print("no frame")    
     cv2.destroyAllWindows()
     if cap is not None:
         print('releasing cap at return')
         cap.release()
     return __isRunning, horizontal_detected, reach_the_end
 
-import cv2
-import pytesseract
-
-# 读取图像
-image = cv2.imread('test.jpg')
+if __name__ == "__main__":
+    path_tracking('red')
 
 
-# 使用Tesseract检测数字
 
-
-# 遍历检测结果
-
-
-cv2.imshow('Result', image)
-cv2.waitKey(0)

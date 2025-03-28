@@ -1,3 +1,6 @@
 {
-    "git.enableCommitSigning": false
+    "git.enableCommitSigning": false,
+    "python.analysis.extraPaths": [
+        "./crnn.pytorch/models"
+    ]
 }
