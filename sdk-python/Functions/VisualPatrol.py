@@ -22,6 +22,10 @@ global horizontal_detected
 horizontal_detected = False
 global vertical_detected
 vertical_detected = False
+global color_list_index
+color_list_index = 0
+global color_list
+color_list = [('red',), ('black',)]
 
 range_rgb = {
     'red': (0, 0, 255),
@@ -178,7 +182,7 @@ def run(img):
     global line_centerx
     global __target_color
     global horizontal_detected
-    
+    color_changed = False
     horizontal_detected = False  # Reset at the beginning of each detection
     img_copy = img.copy()
     img_h, img_w = img.shape[:2]
@@ -248,10 +252,18 @@ def run(img):
     if horizontal_detected:
         line_centerx = -1  # Stop motors
         cv2.putText(img, "STOP", (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
+        if not color_changed:  
+            setTargetColor(color_list[color_list_index]) # Set target color to red
+            color_list_index = (color_list_index + 1) % len(color_list) # Switch to next color
+            color_changed = True
+        horizontal_detected = False  # Reset horizontal detection
+        
+        
     elif weight_sum != 0:
         line_centerx = int(centroid_x_sum / weight_sum)
     else:
         line_centerx = -1
+        color_changed = False  # Reset color change flag
     return img
 
 #关闭前处理
